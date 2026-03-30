@@ -17,9 +17,8 @@ export async function POST(req: NextRequest) {
     const response = await fetch("https://us-central1-speed-app-a69c3.cloudfunctions.net/prod/api.live", {
       method: 'POST',
       headers: {
-        'User-Agent': 'okhttp/3.12.1',
+        'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'Content-Type': 'application/json; charset=UTF-8'
       },
       body: JSON.stringify(payload)
     });
@@ -30,10 +29,10 @@ export async function POST(req: NextRequest) {
 
     const data = await response.json();
 
-    // Parse the response dynamically based on common structures for this endpoint
-    const replyText = data?.choices?.[0]?.text || data?.text || data?.result || "Sorry, I received an empty response.";
+    // Strictly parse the OpenAI Chat Completion format
+    const reply = data?.choices?.[0]?.message?.content || "Sorry, I received an empty response.";
 
-    return NextResponse.json({ reply: replyText });
+    return NextResponse.json({ reply });
 
   } catch (error) {
     console.error("AI API Error:", error);
