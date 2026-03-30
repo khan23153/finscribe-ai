@@ -62,6 +62,7 @@ export default function SignInPage() {
           </Link>
         </div>
         <SignIn
+          fallbackRedirectUrl="/dashboard"
           appearance={{
             baseTheme: undefined,
             variables: {
@@ -71,7 +72,14 @@ export default function SignInPage() {
               colorInputBackground: '#27272a',
               colorInputText: '#fafafa',
               borderRadius: '0.75rem'
-            }
+            },
+            elements: {
+              socialButtonsBlockButton: 'bg-zinc-800 border border-zinc-600 text-white hover:bg-zinc-700',
+              socialButtonsBlockButtonText: 'text-white font-medium',
+              dividerLine: 'bg-zinc-700',
+              dividerText: 'text-zinc-400',
+              formFieldLabel: 'text-zinc-300',
+            },
           }}
         />
       </div>

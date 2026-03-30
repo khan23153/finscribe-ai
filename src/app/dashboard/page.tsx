@@ -177,6 +177,32 @@ export default function DashboardPage() {
           </table>
         </div>
       </div>
+
+      {/* Section A - Quick Actions */}
+      <div className="mt-12">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <a href="/dashboard/expenses" className="bg-surface border border-border rounded-xl p-4 hover:border-accent transition cursor-pointer flex flex-col items-center justify-center text-center gap-2"><span className="text-2xl">➕</span><span className="font-medium text-sm">Add Expense</span></a>
+          <a href="/dashboard/reports" className="bg-surface border border-border rounded-xl p-4 hover:border-accent transition cursor-pointer flex flex-col items-center justify-center text-center gap-2"><span className="text-2xl">📊</span><span className="font-medium text-sm">View Reports</span></a>
+          <a href="/dashboard/goals" className="bg-surface border border-border rounded-xl p-4 hover:border-accent transition cursor-pointer flex flex-col items-center justify-center text-center gap-2"><span className="text-2xl">🎯</span><span className="font-medium text-sm">Set Goal</span></a>
+          <a href="/onboarding/quiz" className="bg-surface border border-border rounded-xl p-4 hover:border-accent transition cursor-pointer flex flex-col items-center justify-center text-center gap-2"><span className="text-2xl">🧠</span><span className="font-medium text-sm">Retake Quiz</span></a>
+        </div>
+      </div>
+
+      {/* Section B - Tips */}
+      <div className="mt-12">
+        <h2 className="font-display font-bold text-xl mb-4">💡 Smart Tips for You</h2>
+        <div className="overflow-x-auto flex gap-4 pb-4">
+          <div className="min-w-64 bg-accent/5 border border-accent/20 rounded-xl p-5 text-sm">
+            Set a weekly budget alert to avoid overspending
+          </div>
+          <div className="min-w-64 bg-accent/5 border border-accent/20 rounded-xl p-5 text-sm">
+            50/30/20 rule: needs, wants, savings
+          </div>
+          <div className="min-w-64 bg-accent/5 border border-accent/20 rounded-xl p-5 text-sm">
+            Automate savings on salary day
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

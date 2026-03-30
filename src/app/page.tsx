@@ -45,13 +45,13 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero Section */}
-      <main className="flex-1 max-w-7xl mx-auto px-6 py-20 lg:py-32 w-full flex flex-col items-center text-center relative z-10">
+      <main className="flex-1 max-w-7xl mx-auto px-6 py-20 lg:py-32 w-full flex flex-col items-center text-center relative z-10 overflow-hidden">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-accent/20 bg-accent/5 mb-8">
           <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
           <span className="text-sm font-medium text-accent">AI-Powered Finance</span>
         </div>
 
-        <h1 className="font-display text-5xl md:text-7xl font-black tracking-tight mb-6">
+        <h1 className="font-display text-4xl md:text-6xl lg:text-7xl break-words font-black tracking-tight mb-6">
           Your Money,<br />
           <span className="text-accent">Understood.</span>
         </h1>
