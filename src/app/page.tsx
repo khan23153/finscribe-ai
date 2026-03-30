@@ -45,22 +45,23 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero Section */}
-      <main className="flex-1 max-w-7xl mx-auto px-6 py-20 lg:py-32 w-full flex flex-col items-center text-center relative z-10">
+      <main className="flex-1 max-w-7xl mx-auto px-6 py-20 lg:py-32 w-full overflow-x-hidden flex flex-col items-center text-center relative z-10">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-accent/20 bg-accent/5 mb-8">
           <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
           <span className="text-sm font-medium text-accent">AI-Powered Finance</span>
         </div>
 
-        <h1 className="font-display text-5xl md:text-7xl font-black tracking-tight mb-6">
-          Your Money,<br />
-          <span className="text-accent">Understood.</span>
-        </h1>
+        <div className="px-4 max-w-full overflow-hidden w-full flex flex-col items-center">
+          <h1 className="font-display text-4xl md:text-6xl lg:text-7xl leading-tight break-words w-full font-black tracking-tight mb-6">
+            Your Money,<br />
+            <span className="text-accent">Understood.</span>
+          </h1>
 
-        <p className="text-muted text-lg md:text-xl max-w-2xl mb-10">
-          Stop guessing, start growing. FinScribe AI turns your transactions into actionable financial intelligence.
-        </p>
+          <p className="text-muted text-lg md:text-xl max-w-2xl mb-10">
+            Stop guessing, start growing. FinScribe AI turns your transactions into actionable financial intelligence.
+          </p>
 
-        <div className="flex flex-col sm:flex-row items-center gap-4 relative">
+          <div className="flex flex-col sm:flex-row items-center gap-4 relative">
           <Link
             href="/sign-up"
             className="bg-accent hover:bg-accent-dark text-background px-8 py-3 rounded-full font-bold text-lg transition-colors w-full sm:w-auto"
@@ -90,6 +91,7 @@ export default function LandingPage() {
             </div>
             <div className="font-display text-2xl font-bold text-accent">94% accuracy</div>
           </div>
+        </div>
         </div>
       </main>
 

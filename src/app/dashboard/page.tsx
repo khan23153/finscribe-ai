@@ -177,6 +177,43 @@ export default function DashboardPage() {
           </table>
         </div>
       </div>
+
+      {/* Quick Actions Row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: "Add Expense", icon: "➕", href: "/dashboard/expenses" },
+          { label: "View Reports", icon: "📊", href: "/dashboard/reports" },
+          { label: "Set Goal", icon: "🎯", href: "/dashboard/goals" },
+          { label: "Retake Quiz", icon: "🧠", href: "/onboarding/quiz" }
+        ].map((action, i) => (
+          <a
+            key={i}
+            href={action.href}
+            className="bg-surface border border-border rounded-xl p-4 flex items-center gap-3 hover:border-accent transition-colors cursor-pointer"
+          >
+            <span className="text-xl">{action.icon}</span>
+            <span className="font-medium text-sm">{action.label}</span>
+          </a>
+        ))}
+      </div>
+
+      {/* Financial Tips Carousel */}
+      <div className="bg-surface border border-border rounded-xl overflow-hidden p-6">
+        <h3 className="font-display font-bold text-lg mb-4 flex items-center gap-2">
+          <span>💡</span> Smart Tips for You
+        </h3>
+        <div className="flex gap-4 overflow-x-auto pb-4" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          {[
+            "Set a weekly budget alert to avoid overspending on weekends",
+            "The 50/30/20 rule: 50% needs, 30% wants, 20% savings",
+            "Automate your savings on salary day before you spend"
+          ].map((tip, i) => (
+            <div key={i} className="min-w-72 bg-accent/5 border border-accent/20 rounded-xl p-5 shrink-0">
+              <p className="text-sm text-zinc-300 leading-relaxed">{tip}</p>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
