@@ -1,33 +1,39 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const { messages, systemPrompt } = await req.json()
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY || '',
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-3-haiku-20240307',
-        max_tokens: 1024,
-        system: systemPrompt || 'You are FinScribe AI, a professional personal finance assistant. Respond in clear English only. Give practical, actionable financial advice. Be concise and helpful.',
-        messages,
-      }),
-    })
+    const { messages } = await req.json()
 
-    const data = await response.json()
+    const lastMessage = messages[messages.length - 1]?.content || ''
 
-    if (!response.ok) {
-        console.error("Anthropic API error:", data)
-        return NextResponse.json({ reply: `Error: ${data.error?.message || 'Failed to connect to AI.'}` }, { status: response.status })
+    const payload = {
+      n: 1,
+      prompt: `You are FinScribe AI, a professional personal
+finance assistant. Answer in English only. Give practical
+financial advice only. User question: ${lastMessage}`,
+      temperature: 0.7,
+      top_p: 0.9
     }
 
-    return NextResponse.json({
-      reply: data.content?.[0]?.text || 'Something went wrong.'
-    })
+    const response = await fetch(
+      'https://us-central1-speed-app-a69c3.cloudfunctions.net/prod/api.live',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json; charset=UTF-8',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      }
+    )
+
+    const data = await response.json()
+    const reply = data?.choices?.[0]?.text ||
+                  data?.text ||
+                  data?.result ||
+                  'Sorry, could not get a response.'
+
+    return NextResponse.json({ reply })
   } catch (error) {
     console.error("API Route error:", error)
     return NextResponse.json({ reply: 'Internal server error.' }, { status: 500 })
