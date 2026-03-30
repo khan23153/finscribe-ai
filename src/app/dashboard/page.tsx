@@ -63,10 +63,10 @@ export default async function DashboardPage() {
   const totalMonthlySpend = expenses.reduce((acc, curr) => acc + Number(curr.amount), 0);
 
   const stats = [
-    { label: "Total Balance", value: `₹${totalBalance.toLocaleString("en-IN")}`, trend: totalBalance > 0 ? "up" : "neutral", change: "Available" },
-    { label: "Monthly Spend", value: `₹${totalMonthlySpend.toLocaleString("en-IN")}`, trend: "neutral", change: "Current Month" },
+    { label: "Total Balance", value: totalBalance === 0 ? "₹0.00" : `₹${totalBalance.toLocaleString("en-IN")}`, trend: totalBalance > 0 ? "up" : "neutral", change: "Available" },
+    { label: "Monthly Spend", value: totalMonthlySpend === 0 ? "₹0.00" : `₹${totalMonthlySpend.toLocaleString("en-IN")}`, trend: "neutral", change: "Current Month" },
     { label: "Savings Rate", value: totalBalance > 0 ? `${Math.round(((totalBalance - totalMonthlySpend) / Math.max(totalBalance, 1)) * 100)}%` : "0%", trend: "neutral", change: "Target" },
-    { label: "Transactions", value: expenses.length.toString(), trend: "neutral", change: "This Month" }
+    { label: "Transactions", value: expenses.length === 0 ? "0" : expenses.length.toString(), trend: "neutral", change: "This Month" }
   ];
 
   // For AreaChart data, we'll implement zero-state
@@ -155,7 +155,7 @@ export default async function DashboardPage() {
                <div className="w-32 h-32 rounded-full border-4 border-dashed border-border flex items-center justify-center mb-4">
                  <span className="text-sm">0%</span>
                </div>
-               <p className="text-sm">No expenses categorized yet.</p>
+               <p className="text-sm">No data yet</p>
              </div>
           ) : (
             <>
@@ -198,7 +198,7 @@ export default async function DashboardPage() {
             <p className="text-sm text-foreground/80 leading-relaxed max-w-2xl">
               {hasData
                 ? "Based on your spending patterns, you spend 34% more on weekends. Consider setting a weekend budget of ₹3,000 to save ₹8,400/month."
-                : "Record more transactions to get personalized AI insights about your spending patterns and savings opportunities."}
+                : "Add your first expense to get personalized AI insights about your spending patterns."}
             </p>
           </div>
         </div>
@@ -222,8 +222,7 @@ export default async function DashboardPage() {
         {!hasData ? (
           <div className="flex flex-col items-center justify-center py-16 text-muted">
             <Inbox className="w-12 h-12 mb-4 opacity-50" />
-            <p className="text-lg font-medium mb-1">No transactions yet.</p>
-            <p className="text-sm mb-6">Add your first expense to get started!</p>
+            <p className="text-lg font-medium mb-6">No transactions yet. Add your first expense!</p>
             <a
               href="/dashboard/expenses"
               className="bg-accent hover:bg-accent-dark text-background px-6 py-2 rounded-full font-bold text-sm transition-colors"

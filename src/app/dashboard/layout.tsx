@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUser, UserButton } from "@clerk/nextjs";
 
+import ThemeToggle from "../../components/ThemeToggle";
 import AIChatbot from "../../components/AIChatbot"
 export default function DashboardLayout({
   children,
@@ -20,6 +21,7 @@ export default function DashboardLayout({
     { href: "/dashboard/goals", label: "Goals", icon: "🎯" },
     { href: "/dashboard/emi", label: "EMI Calculator", icon: "🧮" },
     { href: "/dashboard/stocks", label: "Stocks", icon: "📈" },
+    { href: "/dashboard/news", label: "Finance News", icon: "📰" },
     { href: "/dashboard/reports", label: "Reports", icon: "📊" },
     { href: "/dashboard/settings", label: "Settings", icon: "⚙️" },
   ];
@@ -54,7 +56,11 @@ export default function DashboardLayout({
             })}
           </nav>
         </div>
-        <div className="p-4 border-t border-border mt-auto sticky bottom-0 bg-surface">
+        <div className="p-4 border-t border-border mt-auto sticky bottom-0 bg-surface space-y-3">
+          <div className="flex justify-between items-center px-1">
+            <span className="text-sm text-muted font-medium">Theme</span>
+            <ThemeToggle />
+          </div>
           <div className="flex items-center justify-between bg-background rounded-xl p-3 border border-border">
             <div className="flex items-center gap-3">
               <UserButton appearance={{ elements: { userButtonAvatarBox: "w-8 h-8" } }} />

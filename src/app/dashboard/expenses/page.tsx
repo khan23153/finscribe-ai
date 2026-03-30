@@ -199,8 +199,7 @@ export default async function ExpensesPage() {
         {!hasData ? (
           <div className="text-center py-16 bg-surface/50 rounded-xl border border-border/50 flex flex-col items-center justify-center">
             <Inbox className="w-12 h-12 text-muted mb-4 opacity-50" />
-            <p className="text-foreground font-medium text-lg mb-1">No expenses yet! 🎉</p>
-            <p className="text-muted text-sm">Add your first expense using the form above.</p>
+            <p className="text-foreground font-medium text-lg">No expenses yet! Add your first one above.</p>
           </div>
         ) : (
           <div className="space-y-3">
