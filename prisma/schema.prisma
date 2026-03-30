@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String               @id @default(cuid())
+  clerkId            String               @unique
+  email              String               @unique
+  firstName          String?
+  lastName           String?
+  onboardingComplete Boolean              @default(false)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  expenses           Expense[]
+  ledgerEntities     LedgerEntity[]
+  ledgerTransactions LedgerTransaction[]
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  amount      Decimal  @db.Decimal(12, 2)
+  currency    String   @default("USD")
+  category    String
+  description String?
+  date        DateTime
+  receiptUrl  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([date])
+}
+
+model LedgerEntity {
+  id                 String              @id @default(cuid())
+  userId             String
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name               String
+  type               LedgerEntityType
+  description        String?
+  openingBalance     Decimal             @default(0) @db.Decimal(12, 2)
+  currency           String              @default("USD")
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  debitTransactions  LedgerTransaction[] @relation("DebitEntity")
+  creditTransactions LedgerTransaction[] @relation("CreditEntity")
+
+  @@index([userId])
+}
+
+model LedgerTransaction {
+  id              String       @id @default(cuid())
+  userId          String
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  debitEntityId   String
+  debitEntity     LedgerEntity @relation("DebitEntity", fields: [debitEntityId], references: [id])
+  creditEntityId  String
+  creditEntity    LedgerEntity @relation("CreditEntity", fields: [creditEntityId], references: [id])
+  amount          Decimal      @db.Decimal(12, 2)
+  currency        String       @default("USD")
+  description     String?
+  transactionDate DateTime
+  referenceNo     String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([userId])
+  @@index([transactionDate])
+  @@index([debitEntityId])
+  @@index([creditEntityId])
+}
+
+enum LedgerEntityType {
+  ASSET
+  LIABILITY
+  EQUITY
+  INCOME
+  EXPENSE
+}
