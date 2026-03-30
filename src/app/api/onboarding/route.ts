@@ -13,76 +13,99 @@ export async function POST(req: Request) {
     }
 
     const data = await req.json();
-    const { startingBalance, topCategories, savingsGoal } = data;
+    const {
+      incomeRange,
+      savingsPercentage,
+      topSpending,
+      expenseTracking,
+      primaryGoal,
+      startingBalance,
+      topCategories,
+      savingsGoal
+    } = data;
 
-    if (startingBalance === undefined || !topCategories || savingsGoal === undefined) {
+    if (
+      !incomeRange ||
+      !savingsPercentage ||
+      !topSpending ||
+      !expenseTracking ||
+      !primaryGoal ||
+      startingBalance === undefined ||
+      !topCategories ||
+      savingsGoal === undefined
+    ) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // 1. Update the User record in Prisma
-    const user = await prisma.user.findUnique({
-      where: { clerkId: userId },
-    });
+    // Wrap db calls in a transaction
+    await prisma.$transaction(async (tx) => {
+      // 1. Update the User record in Prisma
+      const user = await tx.user.findUnique({
+        where: { clerkId: userId },
+      });
 
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+      if (!user) {
+        throw new Error('User not found');
+      }
 
-    await prisma.user.update({
-      where: { clerkId: userId },
-      data: {
-        onboardingComplete: true,
-      },
-    });
-
-    // 2. Create the LedgerEntity (Main Account) and initial LedgerTransaction
-    const mainAccount = await prisma.ledgerEntity.create({
-      data: {
-        userId: user.id,
-        name: 'Main Account',
-        type: 'ASSET',
-        openingBalance: startingBalance,
-        description: 'Primary tracking account created during onboarding',
-      },
-    });
-
-    // If starting balance is > 0, create an initial transaction to reflect the deposit
-    if (startingBalance > 0) {
-      // Need an EQUITY/INCOME account to balance the double-entry ledger
-      const openingEquity = await prisma.ledgerEntity.create({
+      await tx.user.update({
+        where: { clerkId: userId },
         data: {
-          userId: user.id,
-          name: 'Opening Balance Equity',
-          type: 'EQUITY',
-          description: 'System account for initial balance',
+          onboardingComplete: true,
+          incomeRange,
+          savingsPercentage,
+          topSpending,
+          expenseTracking,
+          primaryGoal,
+          savingsGoal,
         },
       });
 
-      await prisma.ledgerTransaction.create({
-        data: {
-          userId: user.id,
-          debitEntityId: mainAccount.id, // Asset increases with debit
-          creditEntityId: openingEquity.id, // Equity increases with credit
-          amount: startingBalance,
-          description: 'Initial Balance',
-          transactionDate: new Date(),
-        },
-      });
-    }
+      // 2. Create the LedgerEntity (Main Account) and initial LedgerTransaction
+      if (startingBalance > 0) {
+        const mainAccount = await tx.ledgerEntity.create({
+          data: {
+            userId: user.id,
+            name: 'Main Account',
+            type: 'ASSET',
+            openingBalance: startingBalance,
+            description: 'Primary tracking account created during onboarding',
+          },
+        });
+
+        const openingEquity = await tx.ledgerEntity.create({
+          data: {
+            userId: user.id,
+            name: 'Opening Balance Equity',
+            type: 'EQUITY',
+            description: 'System account for initial balance',
+          },
+        });
+
+        await tx.ledgerTransaction.create({
+          data: {
+            userId: user.id,
+            debitEntityId: mainAccount.id,
+            creditEntityId: openingEquity.id,
+            amount: startingBalance,
+            description: 'Initial Balance',
+            transactionDate: new Date(),
+          },
+        });
+      }
+    });
 
     // 3. Update Clerk user metadata
     const client = await clerkClient();
     await client.users.updateUser(userId, {
       publicMetadata: {
         onboardingComplete: true,
-        topCategories,
-        savingsGoal,
       },
     });
 
-    return NextResponse.json({ success: true });
-  } catch (error) {
+    return NextResponse.json({ success: true, message: 'Onboarded successfully' });
+  } catch (error: any) {
     console.error('Onboarding Error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
   }
 }
