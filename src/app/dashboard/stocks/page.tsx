@@ -114,8 +114,8 @@ export default function StocksPage() {
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
             <div className="p-5 flex justify-between items-center bg-zinc-950 border-b border-zinc-800">
               <h3 className="font-bold text-zinc-100">Your Portfolio</h3>
-              <span className="text-xs font-mono bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-1 rounded">
-                Total P&L: +₹14,520
+              <span className="text-xs font-mono bg-zinc-500/10 text-zinc-400 border border-zinc-500/20 px-2 py-1 rounded">
+                Total P&L: ₹0.00
               </span>
             </div>
             <div className="overflow-x-auto">
@@ -131,11 +131,7 @@ export default function StocksPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-800">
-                  {[
-                    { sym: "TATAMOTORS", qty: 50, buy: 650.20, ltp: 924.50 },
-                    { sym: "ITC", qty: 100, buy: 440.50, ltp: 412.30 },
-                    { sym: "ZOMATO", qty: 200, buy: 85.00, ltp: 165.40 },
-                  ].map(pos => {
+                  {[].map((pos: { sym: string, qty: number, buy: number, ltp: number }) => {
                     const pl = (pos.ltp - pos.buy) * pos.qty
                     const plpct = ((pos.ltp - pos.buy) / pos.buy) * 100
                     return (

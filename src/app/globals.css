@@ -52,3 +52,11 @@
     color: var(--color-background);
   }
 }
+
+html.light {
+  --color-background: #f8fafc;
+  --color-surface: #ffffff;
+  --color-border: #e2e8f0;
+  --color-foreground: #0f172a;
+  --color-muted: #64748b;
+}

@@ -265,7 +265,7 @@ export default function OnboardingWizardPage() {
       });
 
       if (response.ok) {
-        router.push('/dashboard');
+        window.location.href = '/dashboard';
       } else {
         console.error('Failed to save onboarding data');
         setIsSubmitting(false);
@@ -273,6 +273,10 @@ export default function OnboardingWizardPage() {
     } catch (error) {
       console.error('Error saving onboarding data:', error);
       setIsSubmitting(false);
+    } finally {
+      setTimeout(() => {
+        window.location.href = '/dashboard';
+      }, 2000);
     }
   };
 

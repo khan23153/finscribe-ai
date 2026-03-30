@@ -165,6 +165,11 @@ export default function LedgerPage() {
 
       {/* SECTION B & C - Entity Cards & Inline Tx */}
       {activeTab === 'entities' && (
+        entities.length === 0 ? (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 text-center text-zinc-500">
+            <p>No contacts yet. Add someone above.</p>
+          </div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {entities.map(entity => (
             <div key={entity.id} className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
@@ -260,6 +265,7 @@ export default function LedgerPage() {
             </div>
           ))}
         </div>
+        )
       )}
 
       {/* SECTION D - Transaction History */}

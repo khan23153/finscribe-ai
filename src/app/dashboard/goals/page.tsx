@@ -11,11 +11,7 @@ type Goal = {
   icon: string
 }
 
-const initialGoals: Goal[] = [
-  { id: '1', name: "Emergency Fund", target: 100000, current: 45000, deadline: "2026-12-31", icon: "🏦" },
-  { id: '2', name: "Goa Trip", target: 25000, current: 18000, deadline: "2026-06-01", icon: "✈️" },
-  { id: '3', name: "New Phone", target: 80000, current: 12000, deadline: "2026-09-01", icon: "📱" },
-]
+const initialGoals: Goal[] = []
 
 const icons = ["🏠", "🚗", "✈️", "📱", "💍", "🎓", "🏦", "💻", "🎉"]
 
@@ -129,6 +125,11 @@ export default function GoalsPage() {
       </div>
 
       {/* SECTION B - Goal Cards */}
+      {goals.length === 0 ? (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 text-center text-zinc-500">
+          <p>No goals set yet. Create your first goal!</p>
+        </div>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {goals.map(goal => {
           const progress = Math.min((goal.current / goal.target) * 100, 100)
@@ -217,6 +218,7 @@ export default function GoalsPage() {
           )
         })}
       </div>
+      )}
     </div>
   )
 }
