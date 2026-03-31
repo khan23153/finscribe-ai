@@ -228,6 +228,7 @@ export default function OnboardingWizardPage() {
   const [completed, setCompleted] = useState(false);
   const [completedData, setCompletedData] = useState<OnboardingData | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   // Step 1
   const [startingBalance, setStartingBalance] = useState("");
@@ -264,24 +265,31 @@ export default function OnboardingWizardPage() {
         body: JSON.stringify(data),
       });
 
-      if (response.ok) {
-        window.location.href = '/dashboard';
-      } else {
-        console.error('Failed to save onboarding data');
-        setIsSubmitting(false);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to save preferences.");
       }
-    } catch (error) {
-      console.error('Error saving onboarding data:', error);
-      setIsSubmitting(false);
-    } finally {
+
+      // SUCCESS: Force a hard browser redirect to break out of the Next.js cache/state loop
       setTimeout(() => {
         window.location.href = '/dashboard';
-      }, 2000);
+      }, 1000);
+
+    } catch (error: any) {
+      console.error(error);
+      // Display error to user, stop loading spinner, but DO NOT reset the step to 1
+      setErrorMessage(error.message || "An unexpected error occurred.");
+      setIsSubmitting(false);
+      setCompleted(false); // Also reset completion state so the form can be retried
     }
   };
 
-  const handleNext = () => {
+  const handleNext = (e?: React.MouseEvent | React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!canProceed() || isSubmitting) return;
+
+    setErrorMessage(""); // Clear any previous errors
+
     if (step < 3) {
       setStep((s) => s + 1);
     } else {
@@ -450,6 +458,13 @@ export default function OnboardingWizardPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Error Message */}
+                {errorMessage && (
+                  <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4">
+                    <p className="text-sm text-red-500 text-center">{errorMessage}</p>
+                  </div>
+                )}
 
                 {/* Navigation */}
                 <div className="flex items-center gap-3 pt-1">
