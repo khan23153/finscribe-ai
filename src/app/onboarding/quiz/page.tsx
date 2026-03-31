@@ -266,24 +266,26 @@ export default function OnboardingWizardPage() {
         body: JSON.stringify(data),
       });
 
-      if (response.ok) {
-        setCompleted(true);
-        setTimeout(() => {
-          window.location.href = '/dashboard';
-        }, 2000);
-      } else {
-        console.error('Failed to save onboarding data');
-        setError("Failed to save preferences.");
-        setIsSubmitting(false);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to save preferences.");
       }
-    } catch (err) {
-      console.error('Error saving onboarding data:', err);
-      setError("Failed to save preferences.");
+
+      setCompleted(true);
+      setTimeout(() => {
+        window.location.href = '/dashboard';
+      }, 1000);
+
+    } catch (error: any) {
+      console.error(error);
+      setError(error.message || "An unexpected error occurred.");
       setIsSubmitting(false);
+      setCompleted(false);
     }
   };
 
-  const handleNext = () => {
+  const handleNext = (e?: React.MouseEvent | React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!canProceed() || isSubmitting) return;
     setError(null);
     if (step < 3) {
