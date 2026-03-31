@@ -1,0 +1,2 @@
+sed -i 's/<Inbox className="w-12 h-12 text-muted mb-4 opacity-50" \/>/<div className="text-6xl mb-4">💸<\/div>/g' src/app/dashboard/expenses/page.tsx
+sed -i 's/<p className="text-foreground font-medium text-lg">No expenses yet! Add your first one above.<\/p>/<p className="text-foreground font-medium text-xl mb-2">No expenses yet!<\/p>\n            <p className="text-muted">Add your first expense above<\/p>/g' src/app/dashboard/expenses/page.tsx

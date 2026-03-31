@@ -127,7 +127,7 @@ export default function GoalsPage() {
       {/* SECTION B - Goal Cards */}
       {goals.length === 0 ? (
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 text-center text-zinc-500">
-          <p>No goals set yet. Create your first goal!</p>
+          <p>No goals yet. Set your first goal!</p>
         </div>
       ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

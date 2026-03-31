@@ -1,42 +1,41 @@
-"use client";
+'use client'
 
-import { useEffect, useState } from "react";
-import { Moon, Sun } from "lucide-react";
+import { Sun, Moon } from 'lucide-react'
+import { useState, useEffect } from 'react'
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState("dark");
+  const [isDark, setIsDark] = useState(true)
 
   useEffect(() => {
-    // Check localStorage on mount
-    const savedTheme = localStorage.getItem("theme");
-    if (savedTheme === "light") {
-      setTheme("light");
-      document.documentElement.classList.add("light");
-    } else {
-      setTheme("dark");
-      document.documentElement.classList.remove("light");
+    const saved = localStorage.getItem('finscribe-theme')
+    if (saved === 'light') {
+      setIsDark(false)
+      document.documentElement.classList.add('light')
     }
-  }, []);
+  }, [])
 
-  const toggleTheme = () => {
-    if (theme === "dark") {
-      setTheme("light");
-      document.documentElement.classList.add("light");
-      localStorage.setItem("theme", "light");
+  const toggle = () => {
+    const newIsDark = !isDark
+    setIsDark(newIsDark)
+    if (newIsDark) {
+      document.documentElement.classList.remove('light')
+      localStorage.setItem('finscribe-theme', 'dark')
     } else {
-      setTheme("dark");
-      document.documentElement.classList.remove("light");
-      localStorage.setItem("theme", "dark");
+      document.documentElement.classList.add('light')
+      localStorage.setItem('finscribe-theme', 'light')
     }
-  };
+  }
 
   return (
     <button
-      onClick={toggleTheme}
-      className="p-2 rounded-xl bg-surface border border-border text-muted hover:text-foreground transition-colors focus:outline-none"
-      aria-label="Toggle theme"
+      onClick={toggle}
+      className="flex items-center gap-2 w-full px-3 py-2 rounded-lg hover:bg-zinc-800 transition-all text-sm text-zinc-400 hover:text-white"
     >
-      {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+      {isDark ? (
+        <><Sun size={16} /><span>Light Mode</span></>
+      ) : (
+        <><Moon size={16} /><span>Dark Mode</span></>
+      )}
     </button>
-  );
+  )
 }

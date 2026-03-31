@@ -24,9 +24,9 @@ type Transaction = {
 }
 
 const initialEntities: Entity[] = [
-  { id: '1', name: "Rahul Sharma", type: "Customer", phone: "9876543210", balance: 5000 },
-  { id: '2', name: "Priya Electronics", type: "Supplier", phone: "9876543211", balance: -12000 },
-  { id: '3', name: "Ahmed Khan", type: "Friend", phone: "9876543212", balance: 500 },
+
+
+
 ]
 
 export default function LedgerPage() {

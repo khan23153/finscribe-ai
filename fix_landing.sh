@@ -1,0 +1,3 @@
+sed -i 's/<main className="flex-1 max-w-7xl mx-auto px-6 py-20 lg:py-32 w-full flex flex-col items-center text-center relative z-10">/<main className="flex-1 max-w-7xl mx-auto px-6 py-20 lg:py-32 w-full overflow-hidden flex flex-col items-center text-center relative z-10">/g' src/app/page.tsx
+sed -i 's/<div className="w-full flex flex-col items-center">/<div className="px-4 max-w-full overflow-x-hidden w-full flex flex-col items-center">/g' src/app/page.tsx
+sed -i 's/<h1 className="font-display text-5xl md:text-7xl font-black tracking-tight mb-6">/<h1 className="font-display text-4xl md:text-6xl lg:text-7xl leading-none break-words w-full font-black tracking-tight mb-6">/g' src/app/page.tsx

@@ -107,7 +107,7 @@ export default async function DashboardPage() {
             {!hasData ? (
                <div className="absolute inset-0 flex flex-col items-center justify-center text-muted">
                  <Inbox className="w-10 h-10 mb-2 opacity-50" />
-                 <p className="text-sm">No spending data available</p>
+                 <p className="text-sm">Start tracking to see your spending trends</p>
                </div>
             ) : (
               <>
@@ -155,7 +155,7 @@ export default async function DashboardPage() {
                <div className="w-32 h-32 rounded-full border-4 border-dashed border-border flex items-center justify-center mb-4">
                  <span className="text-sm">0%</span>
                </div>
-               <p className="text-sm">No data yet</p>
+               <p className="text-sm">No spending data yet</p>
              </div>
           ) : (
             <>
@@ -222,7 +222,7 @@ export default async function DashboardPage() {
         {!hasData ? (
           <div className="flex flex-col items-center justify-center py-16 text-muted">
             <Inbox className="w-12 h-12 mb-4 opacity-50" />
-            <p className="text-lg font-medium mb-6">No transactions yet. Add your first expense!</p>
+            <p className="text-lg font-medium mb-6">No transactions yet. Add your first expense! 💸</p>
             <a
               href="/dashboard/expenses"
               className="bg-accent hover:bg-accent-dark text-background px-6 py-2 rounded-full font-bold text-sm transition-colors"
