@@ -228,6 +228,7 @@ export default function OnboardingWizardPage() {
   const [completed, setCompleted] = useState(false);
   const [completedData, setCompletedData] = useState<OnboardingData | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Step 1
   const [startingBalance, setStartingBalance] = useState("");
@@ -255,6 +256,7 @@ export default function OnboardingWizardPage() {
 
   const onComplete = async (data: OnboardingData) => {
     try {
+      setError(null);
       setIsSubmitting(true);
       const response = await fetch('/api/onboarding', {
         method: 'POST',
@@ -265,23 +267,25 @@ export default function OnboardingWizardPage() {
       });
 
       if (response.ok) {
-        window.location.href = '/dashboard';
+        setCompleted(true);
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 2000);
       } else {
         console.error('Failed to save onboarding data');
+        setError("Failed to save preferences.");
         setIsSubmitting(false);
       }
-    } catch (error) {
-      console.error('Error saving onboarding data:', error);
+    } catch (err) {
+      console.error('Error saving onboarding data:', err);
+      setError("Failed to save preferences.");
       setIsSubmitting(false);
-    } finally {
-      setTimeout(() => {
-        window.location.href = '/dashboard';
-      }, 2000);
     }
   };
 
   const handleNext = () => {
     if (!canProceed() || isSubmitting) return;
+    setError(null);
     if (step < 3) {
       setStep((s) => s + 1);
     } else {
@@ -291,14 +295,17 @@ export default function OnboardingWizardPage() {
         savingsGoal: Number(savingsGoal),
       };
       setCompletedData(data);
-      setCompleted(true);
       onComplete(data);
     }
   };
 
-  const handleBack = () => setStep((s) => Math.max(1, s - 1));
+  const handleBack = () => {
+    setError(null);
+    setStep((s) => Math.max(1, s - 1));
+  };
 
   const handleRestart = () => {
+    setError(null);
     setStep(1);
     setCompleted(false);
     setCompletedData(null);
@@ -450,6 +457,12 @@ export default function OnboardingWizardPage() {
                     </div>
                   )}
                 </div>
+
+                {error && (
+                  <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 flex items-center justify-center animate-in fade-in slide-in-from-bottom-2">
+                    <span className="text-sm font-medium text-red-500">{error}</span>
+                  </div>
+                )}
 
                 {/* Navigation */}
                 <div className="flex items-center gap-3 pt-1">
