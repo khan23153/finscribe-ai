@@ -1,64 +1,67 @@
-"use client";
+'use client'
 
-import { useState, useEffect } from "react";
-import { RefreshCw, Newspaper } from "lucide-react";
+import { useState, useEffect } from 'react'
+import { RefreshCw, Newspaper } from 'lucide-react'
 
 type NewsItem = {
-  title: string;
-  summary: string;
-  category: string;
-  sentiment: string;
-  time: string;
-};
+  title: string
+  summary: string
+  category: 'Markets' | 'Economy' | 'Crypto' | 'Banking' | 'RBI'
+  sentiment: 'positive' | 'negative' | 'neutral'
+  time: string
+}
 
 export default function FinanceNewsPage() {
-  const [news, setNews] = useState<NewsItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("All");
+  const [news, setNews] = useState<NewsItem[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState("All")
 
-  const tabs = ["All", "Markets", "Economy", "Crypto", "Banking", "RBI"];
+  const tabs = ["All", "Markets", "Economy", "Crypto", "Banking", "RBI"]
 
   const fetchNews = async () => {
-    setIsLoading(true);
-    setNews([]);
+    setIsLoading(true)
+    setNews([])
 
     try {
       const response = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          systemPrompt: "You are a financial news generator. Output strictly JSON array only, without markdown.",
+          systemPrompt: 'You are a financial news curator for Indian markets. Return ONLY a raw JSON array. No markdown, no code blocks, no explanation. Just the JSON array starting with [ and ending ]',
           messages: [
             {
               role: "user",
-              content:
-                "Generate 8 realistic Indian financial market news items for today. Return as JSON array: [{'title':'...','summary':'2 sentence summary','category':'Markets|Economy|Crypto|Banking|RBI','sentiment':'positive|negative|neutral','time':'X hours ago'}]",
-            },
-          ],
-        }),
-      });
+              content: 'Give me 8 realistic Indian financial market news headlines for today April 2026. Return as JSON array exactly: [{"title":"...","summary":"2 sentence summary of news","category":"Markets","sentiment":"positive","time":"2 hours ago"}]. Categories must be one of: Markets, Economy, Crypto, Banking, RBI. Sentiment must be one of: positive, negative, neutral'
+            }
+          ]
+        })
+      })
 
-      const data = await response.json();
-      const rawText = data.reply;
+      const data = await response.json()
+      const rawText = data.reply
 
-      const jsonString = rawText.replace(/```json|```/g, "").trim();
-      const parsed = JSON.parse(jsonString);
+      const clean = rawText
+        .replace(/```json/g, '')
+        .replace(/```/g, '')
+        .trim()
+
+      const parsed = JSON.parse(clean)
 
       if (Array.isArray(parsed)) {
-        setNews(parsed);
+        setNews(parsed)
       }
     } catch (error) {
-      console.error("Failed to fetch news:", error);
+      console.error("Failed to fetch news:", error)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
-    fetchNews();
-  }, []);
+    fetchNews()
+  }, [])
 
-  const filteredNews = activeTab === "All" ? news : news.filter((item) => item.category === activeTab);
+  const filteredNews = activeTab === "All" ? news : news.filter(item => item.category === activeTab)
 
   return (
     <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-8">
@@ -66,9 +69,9 @@ export default function FinanceNewsPage() {
         <div>
           <h1 className="font-display text-3xl font-bold flex items-center gap-3">
             <Newspaper className="w-8 h-8 text-accent" />
-            Finance News
+            Finance News 📰
           </h1>
-          <p className="text-muted mt-2">AI-curated market updates and economy alerts.</p>
+          <p className="text-muted mt-2">Live Indian market updates</p>
         </div>
         <button
           onClick={fetchNews}
@@ -81,14 +84,14 @@ export default function FinanceNewsPage() {
       </div>
 
       <div className="flex overflow-x-auto space-x-2 pb-2" style={{ scrollbarWidth: "none" }}>
-        {tabs.map((tab) => (
+        {tabs.map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`px-4 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors ${
               activeTab === tab
-                ? "bg-accent/20 text-accent font-medium border border-accent/50"
-                : "bg-surface text-muted border border-border hover:bg-background"
+                ? "bg-accent text-black font-medium"
+                : "bg-surface text-zinc-400 border border-border hover:bg-background"
             }`}
           >
             {tab}
@@ -96,45 +99,44 @@ export default function FinanceNewsPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {isLoading
           ? Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="bg-surface border border-border rounded-xl p-5 space-y-4 animate-pulse">
-                <div className="flex justify-between items-center">
-                  <div className="w-20 h-6 bg-border rounded-full" />
-                  <div className="w-16 h-4 bg-border rounded" />
-                </div>
-                <div className="w-full h-12 bg-border rounded" />
-                <div className="w-full h-16 bg-border rounded" />
-              </div>
+              <div key={i} className="animate-pulse bg-zinc-800 rounded-xl h-32 w-full" />
             ))
-          : filteredNews.map((item, i) => (
-              <div
-                key={i}
-                className="bg-surface border border-border rounded-xl p-5 hover:border-accent/50 transition-colors flex flex-col"
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <span className="text-xs font-semibold uppercase tracking-wider bg-background px-2.5 py-1 rounded-md border border-border text-muted">
-                    {item.category}
-                  </span>
-                  <span className="text-xs text-muted">{item.time}</span>
+          : filteredNews.map((item, i) => {
+              const categoryColors = {
+                Markets: "bg-blue-500/20 text-blue-400",
+                Economy: "bg-green-500/20 text-green-400",
+                Crypto: "bg-yellow-500/20 text-yellow-400",
+                Banking: "bg-purple-500/20 text-purple-400",
+                RBI: "bg-orange-500/20 text-orange-400"
+              }
+              const sentimentColors = {
+                positive: "bg-green-400",
+                negative: "bg-red-400",
+                neutral: "bg-zinc-400"
+              }
+
+              return (
+                <div
+                  key={i}
+                  className="bg-surface border border-zinc-800 rounded-xl p-4 hover:border-zinc-600 transition flex flex-col"
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-md ${categoryColors[item.category] || "bg-zinc-800 text-zinc-400"}`}>
+                        {item.category}
+                      </span>
+                      <span className={`w-2 h-2 rounded-full ${sentimentColors[item.sentiment] || "bg-zinc-400"}`} />
+                    </div>
+                    <span className="text-xs text-zinc-400">{item.time}</span>
+                  </div>
+                  <h3 className="font-semibold text-sm text-white mb-1 flex-1">{item.title}</h3>
+                  <p className="text-xs text-zinc-400 mt-1 leading-relaxed">{item.summary}</p>
                 </div>
-                <h3 className="font-bold text-lg leading-tight mb-2 flex-1">{item.title}</h3>
-                <p className="text-muted text-sm leading-relaxed mb-4">{item.summary}</p>
-                <div className="flex items-center gap-2 mt-auto pt-4 border-t border-border">
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      item.sentiment === "positive"
-                        ? "bg-green-500"
-                        : item.sentiment === "negative"
-                        ? "bg-red-500"
-                        : "bg-yellow-500"
-                    }`}
-                  />
-                  <span className="text-xs font-medium text-muted capitalize">{item.sentiment} Sentiment</span>
-                </div>
-              </div>
-            ))}
+              )
+            })}
       </div>
 
       {!isLoading && filteredNews.length === 0 && (
@@ -143,5 +145,5 @@ export default function FinanceNewsPage() {
         </div>
       )}
     </div>
-  );
+  )
 }

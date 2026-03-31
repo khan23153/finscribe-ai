@@ -1,0 +1,8 @@
+sed -i 's/{ label: "Total Balance", value: totalBalance === 0 ? "₹0.00" : `₹${totalBalance.toLocaleString("en-IN")}`/{ label: "Total Balance", value: totalBalance === 0 ? "₹0.00" : `₹${totalBalance.toLocaleString("en-IN")}`/g' src/app/dashboard/page.tsx
+sed -i 's/{ label: "Monthly Spend", value: totalMonthlySpend === 0 ? "₹0.00" : `₹${totalMonthlySpend.toLocaleString("en-IN")}`/{ label: "Monthly Spend", value: totalMonthlySpend === 0 ? "₹0.00" : `₹${totalMonthlySpend.toLocaleString("en-IN")}`/g' src/app/dashboard/page.tsx
+sed -i 's/{ label: "Savings Rate", value: totalBalance > 0 ? `${Math.round(((totalBalance - totalMonthlySpend) \/ Math.max(totalBalance, 1)) \* 100)}%` : "0%"/{ label: "Savings Rate", value: totalBalance > 0 ? `${Math.round(((totalBalance - totalMonthlySpend) \/ Math.max(totalBalance, 1)) \* 100)}%` : "0%"/g' src/app/dashboard/page.tsx
+sed -i 's/{ label: "Transactions", value: expenses.length === 0 ? "0" : expenses.length.toString()/{ label: "Transactions", value: expenses.length === 0 ? "0" : expenses.length.toString()/g' src/app/dashboard/page.tsx
+
+sed -i 's/<p className="text-sm">No spending data available<\/p>/<p className="text-sm">Start tracking to see your spending trends<\/p>/g' src/app/dashboard/page.tsx
+sed -i 's/<p className="text-sm">No data yet<\/p>/<p className="text-sm">No spending data yet<\/p>/g' src/app/dashboard/page.tsx
+sed -i 's/<p className="text-lg font-medium mb-6">No transactions yet. Add your first expense!<\/p>/<p className="text-lg font-medium mb-6">No transactions yet. Add your first expense! 💸<\/p>/g' src/app/dashboard/page.tsx

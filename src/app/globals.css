@@ -60,3 +60,7 @@ html.light {
   --color-foreground: #0f172a;
   --color-muted: #64748b;
 }
+html.light body {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
