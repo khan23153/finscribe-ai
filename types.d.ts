@@ -1,8 +1,10 @@
-import { CustomJwtSessionClaims } from "@clerk/types";
-
+export {}
 declare global {
   interface CustomJwtSessionClaims {
-    publicMetadata: {
+    metadata?: {
+      onboardingComplete?: boolean;
+    };
+    publicMetadata?: {
       onboardingComplete?: boolean;
       topCategories?: string[];
       savingsGoal?: number;
