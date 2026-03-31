@@ -20,6 +20,11 @@ import {
   Sparkles,
 } from "lucide-react";
 
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const parseNumber = (val: string | number) => Number(String(val).replace(/[^0-9.]/g, ''));
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface OnboardingData {
@@ -248,9 +253,9 @@ export default function OnboardingWizardPage() {
   }, []);
 
   const canProceed = useCallback(() => {
-    if (step === 1) return startingBalance !== "" && Number(startingBalance) >= 0;
+    if (step === 1) return startingBalance !== "" && !isNaN(parseNumber(startingBalance)) && parseNumber(startingBalance) >= 0;
     if (step === 2) return selectedCategories.length === MAX_CATEGORIES;
-    if (step === 3) return savingsGoal !== "" && Number(savingsGoal) > 0;
+    if (step === 3) return savingsGoal !== "" && !isNaN(parseNumber(savingsGoal)) && parseNumber(savingsGoal) > 0;
     return false;
   }, [step, startingBalance, selectedCategories, savingsGoal]);
 
@@ -267,7 +272,7 @@ export default function OnboardingWizardPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to save preferences.");
+        throw new Error(errorData.error || errorData.message || "Failed to save preferences.");
       }
 
       // SUCCESS: Force a hard browser redirect to break out of the Next.js cache/state loop
@@ -275,10 +280,10 @@ export default function OnboardingWizardPage() {
         window.location.href = '/dashboard';
       }, 1000);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error);
       // Display error to user, stop loading spinner, but DO NOT reset the step to 1
-      setErrorMessage(error.message || "An unexpected error occurred.");
+      setErrorMessage((error as Error).message || "An unexpected error occurred.");
       setIsSubmitting(false);
       setCompleted(false); // Also reset completion state so the form can be retried
     }
@@ -294,9 +299,9 @@ export default function OnboardingWizardPage() {
       setStep((s) => s + 1);
     } else {
       const data: OnboardingData = {
-        startingBalance: Number(startingBalance),
+        startingBalance: parseNumber(startingBalance),
         topCategories: selectedCategories,
-        savingsGoal: Number(savingsGoal),
+        savingsGoal: parseNumber(savingsGoal),
       };
       setCompletedData(data);
       setCompleted(true);

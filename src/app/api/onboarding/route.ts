@@ -13,10 +13,18 @@ export async function POST(req: Request) {
     }
 
     const data = await req.json();
-    const { startingBalance, topCategories, savingsGoal } = data;
+    let { startingBalance, savingsGoal } = data;
+    const { topCategories } = data;
 
     if (startingBalance === undefined || !topCategories || savingsGoal === undefined) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    startingBalance = Number(String(startingBalance).replace(/[^0-9.]/g, ''));
+    savingsGoal = Number(String(savingsGoal).replace(/[^0-9.]/g, ''));
+
+    if (isNaN(startingBalance) || startingBalance < 0 || isNaN(savingsGoal) || savingsGoal < 0) {
+      return NextResponse.json({ error: "Invalid numeric value provided" }, { status: 400 });
     }
 
     // 1. Update the User record in Prisma
@@ -102,7 +110,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Onboarding Error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error("[ONBOARDING_API_ERROR]:", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Internal Server Error" }, { status: 500 });
   }
 }
