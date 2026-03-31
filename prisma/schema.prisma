@@ -11,8 +11,6 @@ model User {
   id                 String               @id @default(cuid())
   clerkId            String               @unique
   email              String               @unique
-  firstName          String?
-  lastName           String?
   onboardingComplete Boolean              @default(false)
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
