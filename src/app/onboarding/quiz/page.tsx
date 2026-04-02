@@ -74,15 +74,16 @@ export default function QuizPage() {
 
       if (response.ok) {
         try {
-          // 1. Refresh user object
           if (user) await user.reload();
-          // 2. CRITICAL: Refresh the session token so middleware gets the new claims
-          if (session) await session.reload();
+          if (!session) throw new Error("Active session not found. Please refresh the page.");
+          await session.reload();
         } catch (reloadError) {
-          console.error("Failed to reload session:", reloadError);
+          console.error("Failed to reload user or session:", reloadError);
+          // Throwing this ensures the outer catch block displays the error on the UI
+          throw new Error("Failed to sync session data. Please try again.");
         }
 
-        // 3. Now the token cookie is definitively updated. Hard redirect to dashboard.
+        // Token is strictly verified and fresh. Safe to redirect.
         window.location.href = '/dashboard';
         return;
       }
