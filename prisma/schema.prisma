@@ -11,8 +11,7 @@ model User {
   id                 String               @id @default(cuid())
   clerkId            String               @unique
   email              String               @unique
-  onboardingComplete Boolean              @default(false)
-  createdAt          DateTime             @default(now())
+    createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
   expenses           Expense[]
   ledgerEntities     LedgerEntity[]
