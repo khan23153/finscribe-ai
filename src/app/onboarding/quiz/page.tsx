@@ -40,6 +40,7 @@ export default function QuizPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleOptionSelect = (option: string) => {
     setAnswers((prev) => ({
@@ -58,6 +59,7 @@ export default function QuizPage() {
 
   const submitQuiz = async () => {
     setIsSubmitting(true);
+    setError(null);
     try {
       const response = await fetch("/api/onboarding", {
         method: "POST",
@@ -67,16 +69,17 @@ export default function QuizPage() {
         body: JSON.stringify({ answers }),
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to save onboarding data");
+      if (response.ok) {
+        // Force a hard redirect to break the Next.js cache/middleware loop
+        window.location.href = '/dashboard';
+        return;
       }
 
-      // Hard redirect to dashboard
-      window.location.href = "/dashboard";
-    } catch (error) {
-      console.error(error);
+      throw new Error("Failed to save onboarding data");
+    } catch (err) {
+      console.error(err);
       setIsSubmitting(false);
-      alert("Something went wrong. Please try again.");
+      setError("Failed to save preferences. Please try again.");
     }
   };
 
@@ -139,7 +142,12 @@ export default function QuizPage() {
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end">
+        <div className="flex flex-col items-end gap-4">
+          {error && (
+            <div className="text-red-500 bg-red-500/10 px-4 py-2 rounded-lg font-medium">
+              {error}
+            </div>
+          )}
           <button
             onClick={handleNext}
             disabled={!hasAnsweredCurrent}
