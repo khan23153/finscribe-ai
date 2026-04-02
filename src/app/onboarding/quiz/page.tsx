@@ -72,28 +72,28 @@ export default function QuizPage() {
         body: JSON.stringify({ answers }),
       });
 
-      if (response.ok) {
-        try {
-          if (user) await user.reload();
-          if (!session) throw new Error("Active session not found. Please refresh the page.");
-          await session.reload();
-        } catch (reloadError) {
-          console.error("Failed to reload user or session:", reloadError);
-          // Throwing this ensures the outer catch block displays the error on the UI
-          throw new Error("Failed to sync session data. Please try again.");
-        }
-
-        // Token is strictly verified and fresh. Safe to redirect.
-        window.location.href = '/dashboard';
-        return;
+      if (!response.ok) {
+        throw new Error("Failed to save onboarding data");
       }
 
-      throw new Error("Failed to save onboarding data");
-    } catch (err) {
-      console.error(err);
+      // Call API to set onboardingComplete in Clerk
+      // AND get the bypass cookie set
+      await fetch('/api/onboarding/complete', {
+        method: 'POST',
+        credentials: 'include',
+      })
+    } catch (e) {
+      console.error('Completion error:', e);
       setIsSubmitting(false);
       setError("Failed to save preferences. Please try again.");
+      return;
     }
+
+    // Small delay to ensure cookie is set
+    await new Promise(resolve => setTimeout(resolve, 500))
+
+    // Hard redirect — bypass cookie will let us through
+    window.location.href = '/dashboard'
   };
 
   if (isSubmitting) {
