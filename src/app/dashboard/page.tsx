@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { PrismaClient } from "@prisma/client";
 import { IndianRupee, Inbox } from "lucide-react";
+import { ClearCookie } from "./ClearCookie";
 
 const prisma = new PrismaClient();
 
@@ -76,6 +77,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      <ClearCookie />
       <header className="mb-8">
         <h1 className="font-display text-3xl font-bold mb-2">Overview</h1>
         <p className="text-muted">Welcome back. Here's your financial summary.</p>
