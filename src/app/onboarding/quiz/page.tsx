@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ArrowRight, CheckCircle2, ChevronRight, Loader2 } from "lucide-react";
-import { useUser, useAuth } from "@clerk/nextjs";
+import { useUser, useSession } from "@clerk/nextjs";
 
 const QUIZ_QUESTIONS = [
   {
@@ -43,7 +43,7 @@ export default function QuizPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { user } = useUser();
-  const { getToken } = useAuth();
+  const { session } = useSession();
 
   const handleOptionSelect = (option: string) => {
     setAnswers((prev) => ({
@@ -73,16 +73,17 @@ export default function QuizPage() {
       });
 
       if (response.ok) {
-        // Isolate the token refresh so it doesn't trigger the main error UI if it hiccups
         try {
           if (user) await user.reload();
-          // CRITICAL: Force Clerk to fetch a new JWT token with updated session claims
-          await getToken({ skipCache: true });
+          if (!session) throw new Error("Active session not found. Please refresh the page.");
+          await session.reload();
         } catch (reloadError) {
-          console.error("Failed to refresh Clerk session/token:", reloadError);
+          console.error("Failed to reload user or session:", reloadError);
+          // Throwing this ensures the outer catch block displays the error on the UI
+          throw new Error("Failed to sync session data. Please try again.");
         }
 
-        // Now the session token is fresh. The middleware will read onboardingComplete: true
+        // Token is strictly verified and fresh. Safe to redirect.
         window.location.href = '/dashboard';
         return;
       }
