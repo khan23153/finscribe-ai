@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ArrowRight, CheckCircle2, ChevronRight, Loader2 } from "lucide-react";
+import { useUser, useAuth } from "@clerk/nextjs";
 
 const QUIZ_QUESTIONS = [
   {
@@ -41,6 +42,8 @@ export default function QuizPage() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useUser();
+  const { getToken } = useAuth();
 
   const handleOptionSelect = (option: string) => {
     setAnswers((prev) => ({
@@ -70,7 +73,16 @@ export default function QuizPage() {
       });
 
       if (response.ok) {
-        // Force a hard redirect to break the Next.js cache/middleware loop
+        // Isolate the token refresh so it doesn't trigger the main error UI if it hiccups
+        try {
+          if (user) await user.reload();
+          // CRITICAL: Force Clerk to fetch a new JWT token with updated session claims
+          await getToken({ skipCache: true });
+        } catch (reloadError) {
+          console.error("Failed to refresh Clerk session/token:", reloadError);
+        }
+
+        // Now the session token is fresh. The middleware will read onboardingComplete: true
         window.location.href = '/dashboard';
         return;
       }
