@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ArrowRight, CheckCircle2, ChevronRight, Loader2 } from "lucide-react";
+import { useUser } from "@clerk/nextjs";
 
 const QUIZ_QUESTIONS = [
   {
@@ -41,6 +42,7 @@ export default function QuizPage() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useUser();
 
   const handleOptionSelect = (option: string) => {
     setAnswers((prev) => ({
@@ -70,6 +72,7 @@ export default function QuizPage() {
       });
 
       if (response.ok) {
+        await user?.reload();
         // Force a hard redirect to break the Next.js cache/middleware loop
         window.location.href = '/dashboard';
         return;
