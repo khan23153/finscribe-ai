@@ -1,8 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
-import { PrismaClient } from "@prisma/client";
 import { Inbox, PlusCircle } from "lucide-react";
 
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 // This needs to be a Server Component for initial data fetch,
 // then we can optionally split the client interactions into a child component

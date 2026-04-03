@@ -1,9 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
-import { PrismaClient } from "@prisma/client";
 import { IndianRupee, Inbox } from "lucide-react";
 import { ClearCookie } from "./ClearCookie";
 
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 export default async function DashboardPage() {
   const { userId } = await auth();
