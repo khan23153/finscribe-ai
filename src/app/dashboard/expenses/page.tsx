@@ -1,8 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../../../lib/prisma";
 import { Inbox, PlusCircle } from "lucide-react";
 
-const prisma = new PrismaClient();
 
 // This needs to be a Server Component for initial data fetch,
 // then we can optionally split the client interactions into a child component
@@ -36,7 +35,7 @@ export default async function ExpensesPage() {
   let totalAmount = 0;
   const categoryTotals: Record<string, number> = {};
 
-  expenses.forEach(e => {
+  expenses.forEach((e: any) => {
     const amt = Number(e.amount);
     totalAmount += amt;
     categoryTotals[e.category] = (categoryTotals[e.category] || 0) + amt;
@@ -204,7 +203,7 @@ export default async function ExpensesPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {expenses.map(expense => (
+            {expenses.map((expense: any) => (
               <div
                 key={expense.id}
                 className="flex items-center justify-between p-4 bg-surface border border-border rounded-xl hover:border-accent/30 transition-colors"
