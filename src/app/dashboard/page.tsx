@@ -1,9 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../../lib/prisma";
 import { IndianRupee, Inbox } from "lucide-react";
 import { ClearCookie } from "./ClearCookie";
 
-const prisma = new PrismaClient();
 
 export default async function DashboardPage() {
   const { userId } = await auth();
@@ -61,7 +60,7 @@ export default async function DashboardPage() {
     orderBy: { date: 'desc' }
   });
 
-  const totalMonthlySpend = expenses.reduce((acc, curr) => acc + Number(curr.amount), 0);
+  const totalMonthlySpend = expenses.reduce((acc: number, curr: any) => acc + Number(curr.amount), 0);
 
   const stats = [
     { label: "Total Balance", value: totalBalance === 0 ? "₹0.00" : `₹${totalBalance.toLocaleString("en-IN")}`, trend: totalBalance > 0 ? "up" : "neutral", change: "Available" },
@@ -245,7 +244,7 @@ export default async function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {expenses.slice(0, 5).map((tx) => (
+                {expenses.slice(0, 5).map((tx: any) => (
                   <tr key={tx.id} className="border-b border-border hover:bg-background/50 transition-colors">
                     <td className="px-6 py-4 text-sm text-muted whitespace-nowrap">{tx.date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}</td>
                     <td className="px-6 py-4 text-sm font-medium">{tx.title}</td>
