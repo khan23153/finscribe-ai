@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+content = """import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(req: NextRequest) {
   try {
@@ -80,3 +80,7 @@ export async function POST(req: NextRequest) {
     })
   }
 }
+"""
+
+with open('src/app/api/ai/route.ts', 'w') as f:
+    f.write(content)

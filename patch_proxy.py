@@ -1,4 +1,18 @@
-import { clerkMiddleware, createRouteMatcher }
+import re
+
+with open('src/proxy.ts', 'r') as f:
+    content = f.read()
+
+# I will move the bypass cookie check to the top, before the !userId check,
+# because the instruction says: "increase cookie bypass check priority — it should be the FIRST thing checked after public routes, before any JWT claims check."
+# Wait, actually before any JWT claims check or before !userId check?
+# "it should be the FIRST thing checked after public routes, before any JWT claims check."
+# In the current proxy.ts, the bypass cookie check is before the JWT sessionClaims check `const meta = (sessionClaims?.metadata ?? {})`.
+# But wait, we get userId and sessionClaims via `const { userId, sessionClaims } = await auth()` right at the start.
+# If we want to check the bypass cookie before any auth/JWT checking...
+# "it should be the FIRST thing checked after public routes, before any JWT claims check."
+
+new_content = """import { clerkMiddleware, createRouteMatcher }
   from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 
@@ -76,7 +90,11 @@ export default clerkMiddleware(async (auth, req) => {
 
 export const config = {
   matcher: [
-    '/((?!_next|[^?]*\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
     '/(api|trpc)(.*)',
   ],
 }
+"""
+
+with open('src/proxy.ts', 'w') as f:
+    f.write(new_content)

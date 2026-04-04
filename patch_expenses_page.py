@@ -1,4 +1,10 @@
-'use client';
+import re
+
+with open('src/app/dashboard/expenses/page.tsx', 'r') as f:
+    content = f.read()
+
+# Let's write the whole file anew since it's changing completely to a client component.
+new_content = """'use client';
 import { useState } from "react";
 import { Inbox, PlusCircle, Trash2 } from "lucide-react";
 
@@ -190,3 +196,7 @@ export default function ExpensesPage() {
     </div>
   )
 }
+"""
+
+with open('src/app/dashboard/expenses/page.tsx', 'w') as f:
+    f.write(new_content)
