@@ -35,30 +35,50 @@ export async function POST(req: NextRequest) {
     }
 
     const user = await prisma.user.findUnique({
-      where: { clerkId: userId }
+      where: { clerkId: userId },
+      select: { id: true }
     })
+
     if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' }, { status: 404 }
-      )
+      // Auto-create user if not exists
+      const newUser = await prisma.user.create({
+        data: { clerkId: userId }
+      })
+
+      const body = await req.json()
+      const expense = await prisma.expense.create({
+        data: {
+          userId: newUser.id,
+          amount: parseFloat(String(body.amount)) || 0,
+          description: String(body.description || ''),
+          category: String(body.category || 'Other'),
+          date: body.date ? new Date(body.date) : new Date(),
+        }
+      })
+      return NextResponse.json({ expense })
     }
 
     const body = await req.json()
     const expense = await prisma.expense.create({
       data: {
         userId: user.id,
-        title: body.description || body.desc || 'Expense',
-        amount: parseFloat(body.amount),
-        category: body.category || 'Other',
-        description: body.description || body.desc || '',
+        amount: parseFloat(String(body.amount)) || 0,
+        description: String(body.description || ''),
+        category: String(body.category || 'Other'),
         date: body.date ? new Date(body.date) : new Date(),
       }
     })
     return NextResponse.json({ expense })
+
   } catch (error) {
-    console.error('POST expense error:', error)
+    console.error('POST expense error DETAILS:',
+      error instanceof Error ? error.message : error
+    )
     return NextResponse.json(
-      { error: 'Failed to save expense' }, { status: 500 }
+      { error: 'Failed to save expense',
+        details: error instanceof Error ? error.message : 'Unknown'
+      },
+      { status: 500 }
     )
   }
 }
