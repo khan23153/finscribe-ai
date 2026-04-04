@@ -42,7 +42,6 @@ model LedgerEntity {
   user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   name               String
   type               LedgerEntityType
-  description        String?
   openingBalance     Decimal             @default(0) @db.Decimal(12, 2)
   currency           String              @default("USD")
   createdAt          DateTime            @default(now())
