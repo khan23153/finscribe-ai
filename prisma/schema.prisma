@@ -10,8 +10,12 @@ datasource db {
 model User {
   id                 String               @id @default(cuid())
   clerkId            String               @unique
-  email              String               @unique
-    createdAt          DateTime             @default(now())
+  email              String?              @unique
+  monthlyIncome      Float?
+  monthlyBudget      Float?
+  savingsGoal        Float?
+  onboardingComplete Boolean              @default(false)
+  createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
   expenses           Expense[]
   ledgerEntities     LedgerEntity[]
@@ -22,12 +26,13 @@ model Expense {
   id          String   @id @default(cuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title       String
-  amount      Decimal  @db.Decimal(12, 2)
+  title       String?
+  amount      Float
   currency    String   @default("USD")
-  category    String
-  description String?
-  date        DateTime
+  category    String   @default("Other")
+  description String   @default("")
+  note        String?
+  date        DateTime @default(now())
   receiptUrl  String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -41,8 +46,11 @@ model LedgerEntity {
   userId             String
   user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   name               String
+  description        String?
+  phone              String?
+  balance            Float               @default(0)
   type               LedgerEntityType
-  openingBalance     Decimal             @default(0) @db.Decimal(12, 2)
+  openingBalance     Float               @default(0)
   currency           String              @default("USD")
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
@@ -60,7 +68,7 @@ model LedgerTransaction {
   debitEntity     LedgerEntity @relation("DebitEntity", fields: [debitEntityId], references: [id])
   creditEntityId  String
   creditEntity    LedgerEntity @relation("CreditEntity", fields: [creditEntityId], references: [id])
-  amount          Decimal      @db.Decimal(12, 2)
+  amount          Float
   currency        String       @default("USD")
   description     String?
   transactionDate DateTime
