@@ -1,0 +1,12 @@
+
+> my-app@0.1.0 start
+> next start
+
+▲ Next.js 16.2.1
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+✓ Ready in 188ms
+Error: @clerk/nextjs: Missing publishableKey. You can get your key at https://dashboard.clerk.com/last-active?path=api-keys.
+    at Object.throwMissingPublishableKeyError (.next/server/chunks/[root-of-the-server]__00m~k8t._.js:26:1499)
+    at l (.next/server/chunks/[root-of-the-server]__00m~k8t._.js:76:618)
+    at <unknown> (.next/server/chunks/[root-of-the-server]__00m~k8t._.js:76:655)
