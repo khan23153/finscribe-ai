@@ -24,9 +24,9 @@ export async function POST() {
     })
     response.cookies.set('onboarding-bypass', 'true', {
       httpOnly: false,
-      secure: true,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 60 * 5, // 5 minutes, enough for redirect
+      maxAge: 60 * 60 * 24 * 30, // 30 days
       path: '/',
     })
     return response
@@ -40,9 +40,9 @@ export async function POST() {
     })
     response.cookies.set('onboarding-bypass', 'true', {
       httpOnly: false,
-      secure: true,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 60 * 5,
+      maxAge: 60 * 60 * 24 * 30, // 30 days
       path: '/',
     })
     return response

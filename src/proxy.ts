@@ -8,56 +8,69 @@ const isPublicRoute = createRouteMatcher([
   '/sign-up(.*)',
 ])
 
-export default clerkMiddleware(async (auth, request) => {
-  const { userId, sessionClaims } = await auth()
-  const path = request.nextUrl.pathname
+export default clerkMiddleware(async (auth, req) => {
+  try {
+    const { userId, sessionClaims } = await auth()
+    const path = req.nextUrl.pathname
 
-  // Always allow public routes
-  if (isPublicRoute(request)) return
+    // Always allow these
+    if (isPublicRoute(req)) return NextResponse.next()
+    if (path.startsWith('/api')) return NextResponse.next()
+    if (path.startsWith('/_next')) return NextResponse.next()
+    if (path.startsWith('/favicon')) return NextResponse.next()
 
-  // Always allow API routes - never redirect these
-  if (path.startsWith('/api')) return
-
-  // Not logged in
-  if (!userId) {
-    return NextResponse.redirect(
-      new URL('/sign-in', request.url)
-    )
-  }
-
-  // Get onboarding status from session claims
-  const meta = (sessionClaims?.metadata ?? {}) as
-    Record<string, unknown>
-  const done = meta?.onboardingComplete === true
-
-  // If onboarding done → allow everything
-  // EXCEPT if somehow on /onboarding, go to dashboard
-  if (done) {
-    if (path.startsWith('/onboarding')) {
+    // Not logged in
+    if (!userId) {
       return NextResponse.redirect(
-        new URL('/dashboard', request.url)
+        new URL('/sign-in', req.url)
       )
     }
-    return // allow
+
+    // Check bypass cookie first (set after onboarding)
+    const bypassCookie = req.cookies.get(
+      'onboarding-bypass'
+    )
+    if (bypassCookie?.value === 'true') {
+      // User just completed onboarding
+      // Allow everything except going back to onboarding
+      if (path.startsWith('/onboarding')) {
+        return NextResponse.redirect(
+          new URL('/dashboard', req.url)
+        )
+      }
+      return NextResponse.next()
+    }
+
+    // Check session claims for onboarding status
+    const meta = (sessionClaims?.metadata ?? {}) as
+      Record<string, unknown>
+    const done = meta?.onboardingComplete === true
+
+    if (done) {
+      // Onboarding complete — allow everything
+      if (path.startsWith('/onboarding')) {
+        return NextResponse.redirect(
+          new URL('/dashboard', req.url)
+        )
+      }
+      return NextResponse.next()
+    }
+
+    // Onboarding NOT done — only allow /onboarding
+    if (path.startsWith('/onboarding')) {
+      return NextResponse.next()
+    }
+
+    // Everything else → go to onboarding
+    return NextResponse.redirect(
+      new URL('/onboarding', req.url)
+    )
+
+  } catch (err) {
+    console.error('Middleware error:', err)
+    // On any error, allow the request through
+    return NextResponse.next()
   }
-
-  // Onboarding NOT done:
-  // Allow /onboarding pages
-  if (path.startsWith('/onboarding')) return
-
-  // Allow /dashboard ONLY if coming from onboarding
-  // Check for special bypass cookie
-  const bypassCookie = request.cookies.get(
-    'onboarding-bypass'
-  )
-  if (bypassCookie?.value === 'true') {
-    return // allow dashboard access
-  }
-
-  // Otherwise redirect to onboarding
-  return NextResponse.redirect(
-    new URL('/onboarding', request.url)
-  )
 })
 
 export const config = {
