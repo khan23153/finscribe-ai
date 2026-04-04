@@ -3,10 +3,9 @@ import { useEffect } from "react";
 
 export function ClearCookie() {
   useEffect(() => {
-    // Clear the onboarding bypass cookie now
-    // that we are safely on dashboard
+    // Ensure bypass cookie is set for onboarded users
     document.cookie =
-      'onboarding-bypass=; Max-Age=0; path=/'
+      'onboarding-bypass=true; max-age=2592000; path=/; SameSite=lax'
   }, [])
   return null;
 }
