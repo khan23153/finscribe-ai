@@ -12,56 +12,65 @@ export default async function DashboardPage() {
     return null;
   }
 
-  // Fetch the user's main ledger account to calculate balance
-  const mainAccount = await prisma.ledgerEntity.findFirst({
-    where: {
-      user: { clerkId: userId },
-      type: "ASSET",
-      name: "Main Account"
-    }
-  });
-
-  // Calculate true balance (opening balance + credits - debits)
   let totalBalance = 0;
+  let totalMonthlySpend = 0;
+  let expenses: any[] = [];
 
-  if (mainAccount) {
-    const credits = await prisma.ledgerTransaction.aggregate({
-      where: { creditEntityId: mainAccount.id },
-      _sum: { amount: true }
-    });
-
-    const debits = await prisma.ledgerTransaction.aggregate({
-      where: { debitEntityId: mainAccount.id },
-      _sum: { amount: true }
-    });
-
-    totalBalance = Number(mainAccount.openingBalance) +
-      Number(credits._sum.amount || 0) -
-      Number(debits._sum.amount || 0);
-  }
-
-  // Fetch true user record
-  const user = await prisma.user.findUnique({
-    where: { clerkId: userId },
-  });
-
-  // Fetch expenses for current month
-  const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
-  const expenses = await prisma.expense.findMany({
-    where: {
-      user: { clerkId: userId },
-      date: {
-        gte: startOfMonth,
-        lte: endOfMonth
+  try {
+    // Fetch the user's main ledger account to calculate balance
+    const mainAccount = await prisma.ledgerEntity.findFirst({
+      where: {
+        user: { clerkId: userId },
+        type: "ASSET",
+        name: "Main Account"
       }
-    },
-    orderBy: { date: 'desc' }
-  });
+    });
 
-  const totalMonthlySpend = expenses.reduce((acc, curr) => acc + Number(curr.amount), 0);
+    if (mainAccount) {
+      const credits = await prisma.ledgerTransaction.aggregate({
+        where: { creditEntityId: mainAccount.id },
+        _sum: { amount: true }
+      });
+
+      const debits = await prisma.ledgerTransaction.aggregate({
+        where: { debitEntityId: mainAccount.id },
+        _sum: { amount: true }
+      });
+
+      totalBalance = Number(mainAccount.openingBalance) +
+        Number(credits._sum.amount || 0) -
+        Number(debits._sum.amount || 0);
+    }
+
+    // Fetch true user record
+    const user = await prisma.user.findUnique({
+      where: { clerkId: userId },
+    });
+
+    // Fetch expenses for current month
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    expenses = await prisma.expense.findMany({
+      where: {
+        user: { clerkId: userId },
+        date: {
+          gte: startOfMonth,
+          lte: endOfMonth
+        }
+      },
+      orderBy: { date: 'desc' }
+    });
+
+    totalMonthlySpend = expenses.reduce((acc, curr) => acc + Number(curr.amount), 0);
+  } catch (error) {
+    console.error('Dashboard data error:', error);
+    // Return empty default state instead of crashing
+    totalBalance = 0;
+    totalMonthlySpend = 0;
+    expenses = [];
+  }
 
   const stats = [
     { label: "Total Balance", value: totalBalance === 0 ? "₹0.00" : `₹${totalBalance.toLocaleString("en-IN")}`, trend: totalBalance > 0 ? "up" : "neutral", change: "Available" },
