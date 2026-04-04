@@ -8,15 +8,11 @@ datasource db {
 }
 
 model User {
-  id                 String               @id @default(cuid())
-  clerkId            String               @unique
-  email              String?              @unique
-  monthlyIncome      Float?
-  monthlyBudget      Float?
-  savingsGoal        Float?
-  onboardingComplete Boolean              @default(false)
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
+  id                 String    @id @default(cuid())
+  clerkId            String    @unique
+  email              String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
   expenses           Expense[]
   ledgerEntities     LedgerEntity[]
   ledgerTransactions LedgerTransaction[]
@@ -26,19 +22,12 @@ model Expense {
   id          String   @id @default(cuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title       String?
   amount      Float
-  currency    String   @default("USD")
-  category    String   @default("Other")
   description String   @default("")
-  note        String?
+  category    String   @default("Other")
   date        DateTime @default(now())
-  receiptUrl  String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  @@index([userId])
-  @@index([date])
 }
 
 model LedgerEntity {
