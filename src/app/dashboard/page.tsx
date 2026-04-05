@@ -1,120 +1,132 @@
-import { auth } from "@clerk/nextjs/server";
-import { PrismaClient } from "@prisma/client";
+"use client";
+import { useEffect, useState } from "react";
+import { useUser } from "@clerk/nextjs";
 import { IndianRupee, Inbox } from "lucide-react";
-import { ClearCookie } from "./ClearCookie";
 
-const prisma = new PrismaClient();
+export default function DashboardPage() {
+  const { isLoaded, isSignedIn, user } = useUser();
+  const [expenses, setExpenses] = useState<any[]>([]);
+  const [monthlySpend, setMonthlySpend] = useState(0);
+  const [transactionCount, setTransactionCount] = useState(0);
+  const [categoryData, setCategoryData] = useState<Record<string, number>>({});
+  const [isLoading, setIsLoading] = useState(true);
 
-export default async function DashboardPage() {
-  const { userId } = await auth();
+  useEffect(() => {
+    fetchDashboardData();
+    // Set bypass cookie
+    document.cookie = 'onboarding-bypass=true; max-age=2592000; path=/';
+  }, []);
 
-  if (!userId) {
+  const fetchDashboardData = async () => {
+    try {
+      const res = await fetch('/api/expenses');
+      const data = await res.json();
+      const expensesData = data.expenses || [];
+      setExpenses(expensesData);
+
+      // Calculate totals
+      const total = expensesData.reduce(
+        (sum: number, e: any) => sum + Number(e.amount), 0
+      );
+      setMonthlySpend(total);
+      setTransactionCount(expensesData.length);
+
+      // Category breakdown
+      const cats: Record<string, number> = {};
+      expensesData.forEach((e: any) => {
+        cats[e.category] = (cats[e.category] || 0) + Number(e.amount);
+      });
+      setCategoryData(cats);
+
+    } catch (err) {
+      console.error('Dashboard fetch error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (!isLoaded || !isSignedIn) {
     return null;
   }
 
-  let totalBalance = 0;
-  let totalMonthlySpend = 0;
-  let expenses: any[] = [];
-
-  try {
-    // Fetch the user's main ledger account to calculate balance
-    const mainAccount = await prisma.ledgerEntity.findFirst({
-      where: {
-        user: { clerkId: userId },
-        type: "ASSET",
-        name: "Main Account"
-      }
-    });
-
-    if (mainAccount) {
-      const credits = await prisma.ledgerTransaction.aggregate({
-        where: { creditEntityId: mainAccount.id },
-        _sum: { amount: true }
-      });
-
-      const debits = await prisma.ledgerTransaction.aggregate({
-        where: { debitEntityId: mainAccount.id },
-        _sum: { amount: true }
-      });
-
-      totalBalance = Number(mainAccount.openingBalance) +
-        Number(credits._sum.amount || 0) -
-        Number(debits._sum.amount || 0);
-    }
-
-    // Fetch true user record
-    const user = await prisma.user.findUnique({
-      where: { clerkId: userId },
-    });
-
-    // Fetch expenses for current month
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
-    expenses = await prisma.expense.findMany({
-      where: {
-        user: { clerkId: userId },
-        date: {
-          gte: startOfMonth,
-          lte: endOfMonth
-        }
-      },
-      orderBy: { date: 'desc' }
-    });
-
-    totalMonthlySpend = expenses.reduce((acc, curr) => acc + Number(curr.amount), 0);
-  } catch (error) {
-    console.error('Dashboard data error:', error);
-    // Return empty default state instead of crashing
-    totalBalance = 0;
-    totalMonthlySpend = 0;
-    expenses = [];
-  }
-
-  const stats = [
-    { label: "Total Balance", value: totalBalance === 0 ? "₹0.00" : `₹${totalBalance.toLocaleString("en-IN")}`, trend: totalBalance > 0 ? "up" : "neutral", change: "Available" },
-    { label: "Monthly Spend", value: totalMonthlySpend === 0 ? "₹0.00" : `₹${totalMonthlySpend.toLocaleString("en-IN")}`, trend: "neutral", change: "Current Month" },
-    { label: "Savings Rate", value: totalBalance > 0 ? `${Math.round(((totalBalance - totalMonthlySpend) / Math.max(totalBalance, 1)) * 100)}%` : "0%", trend: "neutral", change: "Target" },
-    { label: "Transactions", value: expenses.length === 0 ? "0" : expenses.length.toString(), trend: "neutral", change: "This Month" }
-  ];
-
-  // For AreaChart data, we'll implement zero-state
   const hasData = expenses.length > 0;
-  const pathD = hasData ? "M0,90 L100,60 L200,75 L300,40 L400,55 L500,25" : "M0,100 L500,100";
-  const areaD = `${pathD} L500,120 L0,120 Z`;
+
+  // For the chart and design
+  const areaD = "M0,120 L0,90 Q50,75 100,60 T200,75 T300,40 T400,55 T500,25 L500,120 Z";
+  const pathD = "M0,90 Q50,75 100,60 T200,75 T300,40 T400,55 T500,25";
 
   return (
-    <div className="space-y-8">
-      <ClearCookie />
-      <header className="mb-8">
-        <h1 className="font-display text-3xl font-bold mb-2">Overview</h1>
-        <p className="text-muted">Welcome back. Here's your financial summary.</p>
-      </header>
-
-      {/* Top Stats Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((s, i) => (
-          <div key={i} className="bg-surface border border-border p-6 rounded-xl hover:border-accent/50 transition-colors">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-muted">{s.label}</span>
-              {s.trend === "up" && <span className="text-accent text-xs bg-accent/10 px-2 py-1 rounded font-bold">{s.change}</span>}
-              {s.trend === "down" && <span className="text-red-500 text-xs bg-red-500/10 px-2 py-1 rounded font-bold">{s.change}</span>}
-              {s.trend === "neutral" && <span className="text-muted text-xs bg-background px-2 py-1 rounded font-bold">{s.change}</span>}
-            </div>
-            <div className={`font-mono text-3xl font-bold ${s.label === 'Savings Rate' && parseInt(s.value) > 20 ? 'text-accent' : ''}`}>
-              {s.value}
-            </div>
-          </div>
-        ))}
+    <div className="space-y-6 max-w-[1200px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
+        <div>
+          <h1 className="text-3xl font-display font-bold">
+            Hi, {user.firstName || "there"}! 👋
+          </h1>
+          <p className="text-muted mt-1">Here's what's happening with your money today.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <a
+            href="/dashboard/expenses"
+            className="bg-accent hover:bg-accent-dark text-background px-5 py-2.5 rounded-full font-bold text-sm transition-colors flex items-center gap-2"
+          >
+            <span>+</span> Add Transaction
+          </a>
+        </div>
       </div>
 
-      {/* Charts Row */}
-      <div className="grid lg:grid-cols-5 gap-6">
-        {/* Spending Overview (Area Chart Mock) */}
-        <div className="lg:col-span-3 bg-surface border border-border p-6 rounded-xl flex flex-col">
-          <h3 className="font-display font-bold text-lg mb-6">Spending Overview</h3>
-          <div className="flex-1 relative w-full h-48 sm:h-64 border-b border-border flex items-end">
+      {/* Main KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-surface border border-border p-6 rounded-xl relative overflow-hidden group hover:border-accent/50 transition-colors">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"></div>
+          <div className="relative z-10">
+            <h3 className="text-sm font-medium text-muted mb-1 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-accent"></span> Monthly Spend
+            </h3>
+            <p className="text-3xl font-mono font-bold mt-2">
+              <span className="text-accent">₹</span>
+              {monthlySpend.toLocaleString('en-IN')}
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-surface border border-border p-6 rounded-xl relative overflow-hidden group hover:border-accent/50 transition-colors">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"></div>
+          <div className="relative z-10">
+            <h3 className="text-sm font-medium text-muted mb-1 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-accent-dark"></span> Transactions
+            </h3>
+            <p className="text-3xl font-mono font-bold mt-2 text-foreground">
+              {transactionCount}
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-surface border border-border p-6 rounded-xl relative overflow-hidden group hover:border-accent/50 transition-colors">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"></div>
+          <div className="relative z-10">
+            <h3 className="text-sm font-medium text-muted mb-1 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-green-500"></span> Active Categories
+            </h3>
+            <p className="text-3xl font-mono font-bold mt-2">
+              {Object.keys(categoryData).length}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Two Column Layout for Charts/Tables */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Spending Trend (Area Chart Mock) */}
+        <div className="lg:col-span-3 bg-surface border border-border p-6 rounded-xl flex flex-col min-h-[300px]">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="font-display font-bold text-lg">Spending Trend</h3>
+            <select className="bg-background border border-border rounded-md px-2 py-1 text-xs text-muted outline-none focus:border-accent">
+              <option>This Month</option>
+              <option>Last Month</option>
+              <option>This Year</option>
+            </select>
+          </div>
+          <div className="flex-1 relative flex items-end">
             {!hasData ? (
                <div className="absolute inset-0 flex flex-col items-center justify-center text-muted">
                  <Inbox className="w-10 h-10 mb-2 opacity-50" />
@@ -158,7 +170,7 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* Category Breakdown (Donut Mock) */}
+        {/* Category Breakdown */}
         <div className="lg:col-span-2 bg-surface border border-border p-6 rounded-xl flex flex-col">
           <h3 className="font-display font-bold text-lg mb-6">Category Breakdown</h3>
           {!hasData ? (
@@ -184,16 +196,24 @@ export default async function DashboardPage() {
                   }}
                 >
                   <div className="w-32 h-32 bg-surface rounded-full flex flex-col items-center justify-center border border-surface">
-                    <span className="font-mono font-bold text-xl">4</span>
+                    <span className="font-mono font-bold text-xl">{Object.keys(categoryData).length}</span>
                     <span className="text-xs text-muted">Categories</span>
                   </div>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4 mt-6">
-                <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-accent"></span><span className="text-sm">Food (35%)</span></div>
-                <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-accent-dark"></span><span className="text-sm">Transport (20%)</span></div>
-                <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full" style={{backgroundColor: '#4ade80'}}></span><span className="text-sm">Shopping (25%)</span></div>
-                <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full" style={{backgroundColor: '#86efac'}}></span><span className="text-sm">Bills (20%)</span></div>
+                {Object.entries(categoryData).slice(0, 4).map(([cat, amount], i) => {
+                  const colors = ['bg-accent', 'bg-accent-dark', 'bg-[#4ade80]', 'bg-[#86efac]'];
+                  const colorClass = colors[i % colors.length];
+                  const percentage = Math.round((amount / monthlySpend) * 100);
+
+                  return (
+                    <div key={cat} className="flex items-center gap-2">
+                      <span className={`w-3 h-3 rounded-full ${colorClass.startsWith('bg-[') ? '' : colorClass}`} style={colorClass.startsWith('bg-[') ? {backgroundColor: colorClass.slice(4, -1)} : {}}></span>
+                      <span className="text-sm">{cat} ({percentage}%)</span>
+                    </div>
+                  );
+                })}
               </div>
             </>
           )}
@@ -233,10 +253,10 @@ export default async function DashboardPage() {
         {!hasData ? (
           <div className="flex flex-col items-center justify-center py-16 text-muted">
             <Inbox className="w-12 h-12 mb-4 opacity-50" />
-            <p className="text-lg font-medium mb-6">No transactions yet. Add your first expense! 💸</p>
+            <p className="text-lg font-medium mb-6">No transactions yet. Add your first expense!</p>
             <a
               href="/dashboard/expenses"
-              className="bg-accent hover:bg-accent-dark text-background px-6 py-2 rounded-full font-bold text-sm transition-colors"
+              className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-full font-bold text-sm transition-colors"
             >
               Add Expense
             </a>
@@ -256,12 +276,12 @@ export default async function DashboardPage() {
               <tbody>
                 {expenses.slice(0, 5).map((tx) => (
                   <tr key={tx.id} className="border-b border-border hover:bg-background/50 transition-colors">
-                    <td className="px-6 py-4 text-sm text-muted whitespace-nowrap">{tx.date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}</td>
-                    <td className="px-6 py-4 text-sm font-medium">{tx.title}</td>
+                    <td className="px-6 py-4 text-sm text-muted whitespace-nowrap">{new Date(tx.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}</td>
+                    <td className="px-6 py-4 text-sm font-medium">{tx.description}</td>
                     <td className="px-6 py-4 text-sm text-muted">
                       <span className="bg-background px-2 py-1 rounded border border-border">{tx.category}</span>
                     </td>
-                    <td className="px-6 py-4 font-mono font-bold text-right text-foreground">
+                    <td className="px-6 py-4 font-mono font-bold text-right text-accent">
                       ₹{Number(tx.amount).toLocaleString('en-IN')}
                     </td>
                     <td className="px-6 py-4 flex justify-center">
