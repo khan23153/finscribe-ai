@@ -34,49 +34,45 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const user = await prisma.user.findUnique({
-      where: { clerkId: userId },
-      select: { id: true }
+    const body = await req.json()
+
+    // Find or create user
+    let user = await prisma.user.findUnique({
+      where: { clerkId: userId }
     })
 
     if (!user) {
-      // Auto-create user if not exists
-      const newUser = await prisma.user.create({
+      user = await prisma.user.create({
         data: { clerkId: userId }
       })
-
-      const body = await req.json()
-      const expense = await prisma.expense.create({
-        data: {
-          userId: newUser.id,
-          amount: parseFloat(String(body.amount)) || 0,
-          description: String(body.description || ''),
-          category: String(body.category || 'Other'),
-          date: body.date ? new Date(body.date) : new Date(),
-        }
-      })
-      return NextResponse.json({ expense })
     }
 
-    const body = await req.json()
+    // Create expense with only safe fields
     const expense = await prisma.expense.create({
       data: {
         userId: user.id,
-        amount: parseFloat(String(body.amount)) || 0,
-        description: String(body.description || ''),
-        category: String(body.category || 'Other'),
-        date: body.date ? new Date(body.date) : new Date(),
+        amount: Number(body.amount) || 0,
+        description: body.description
+          ? String(body.description) : '',
+        category: body.category
+          ? String(body.category) : 'Other',
+        date: body.date
+          ? new Date(body.date) : new Date(),
       }
     })
-    return NextResponse.json({ expense })
 
+    return NextResponse.json({ expense })
   } catch (error) {
-    console.error('POST expense error DETAILS:',
-      error instanceof Error ? error.message : error
+    // Log full error
+    console.error(
+      'POST expense FULL ERROR:',
+      JSON.stringify(error, null, 2),
+      error instanceof Error ? error.stack : ''
     )
     return NextResponse.json(
-      { error: 'Failed to save expense',
-        details: error instanceof Error ? error.message : 'Unknown'
+      {
+        error: error instanceof Error
+          ? error.message : 'Unknown error'
       },
       { status: 500 }
     )
