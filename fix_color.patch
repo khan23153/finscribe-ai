@@ -1,0 +1,13 @@
+<<<<<<< SEARCH
+              href="/dashboard/expenses"
+              className="bg-accent hover:bg-accent-dark text-background px-6 py-2 rounded-full font-bold text-sm transition-colors"
+            >
+              Add Expense
+            </a>
+=======
+              href="/dashboard/expenses"
+              className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-full font-bold text-sm transition-colors"
+            >
+              Add Expense
+            </a>
+>>>>>>> REPLACE
