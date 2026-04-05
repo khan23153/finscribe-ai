@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`
 
     const response = await fetch(url, {
       method: 'POST',
@@ -55,7 +55,10 @@ export async function POST(req: NextRequest) {
     const data = await response.json()
 
     if (!response.ok) {
-      console.error('Gemini error:', JSON.stringify(data))
+      console.error('Gemini FULL ERROR:', JSON.stringify(data, null, 2))
+      console.error('Gemini status:', response.status)
+      console.error('Gemini key present:', !!process.env.GEMINI_API_KEY)
+      console.error('Gemini key prefix:', process.env.GEMINI_API_KEY?.substring(0, 8))
       return NextResponse.json({
         reply: 'AI temporarily unavailable. Please try again.'
       })
