@@ -69,7 +69,7 @@ export default function FinanceNewsPage() {
         <div>
           <h1 className="font-display text-3xl font-bold flex items-center gap-3">
             <Newspaper className="w-8 h-8 text-accent" />
-            Finance News 📰
+            Finance News
           </h1>
           <p className="text-muted mt-2">Live Indian market updates</p>
         </div>

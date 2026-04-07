@@ -11,6 +11,7 @@ export default function ThemeToggle() {
     if (saved === 'light') {
       setIsDark(false)
       document.documentElement.classList.add('light')
+      document.body.classList.add('light')
     }
   }, [])
 
@@ -19,9 +20,11 @@ export default function ThemeToggle() {
     setIsDark(newIsDark)
     if (newIsDark) {
       document.documentElement.classList.remove('light')
+      document.body.classList.remove('light')
       localStorage.setItem('finscribe-theme', 'dark')
     } else {
       document.documentElement.classList.add('light')
+      document.body.classList.add('light')
       localStorage.setItem('finscribe-theme', 'light')
     }
   }

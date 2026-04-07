@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUser, UserButton } from "@clerk/nextjs";
 import { useState } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LayoutDashboard, Receipt, BookOpen, Target, Calculator, TrendingUp, Newspaper, BarChart2, Settings } from "lucide-react";
 
 import ThemeToggle from "../../components/ThemeToggle";
 import AIChatbot from "../../components/AIChatbot"
@@ -17,16 +17,16 @@ export default function DashboardLayout({
   const { user } = useUser();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const links = [
-    { href: "/dashboard", label: "Dashboard", icon: "📊" },
-    { href: "/dashboard/expenses", label: "Expenses", icon: "💸" },
-    { href: "/dashboard/ledger", label: "Ledger", icon: "📒" },
-    { href: "/dashboard/goals", label: "Goals", icon: "🎯" },
-    { href: "/dashboard/emi", label: "EMI Calculator", icon: "🧮" },
-    { href: "/dashboard/stocks", label: "Stocks", icon: "📈" },
-    { href: "/dashboard/news", label: "Finance News", icon: "📰" },
-    { href: "/dashboard/reports", label: "Reports", icon: "📊" },
-    { href: "/dashboard/settings", label: "Settings", icon: "⚙️" },
+    const links = [
+    { href: "/dashboard", label: "Dashboard", icon: <LayoutDashboard size={20} /> },
+    { href: "/dashboard/expenses", label: "Expenses", icon: <Receipt size={20} /> },
+    { href: "/dashboard/ledger", label: "Ledger", icon: <BookOpen size={20} /> },
+    { href: "/dashboard/goals", label: "Goals", icon: <Target size={20} /> },
+    { href: "/dashboard/emi", label: "EMI Calculator", icon: <Calculator size={20} /> },
+    { href: "/dashboard/stocks", label: "Stocks", icon: <TrendingUp size={20} /> },
+    { href: "/dashboard/news", label: "Finance News", icon: <Newspaper size={20} /> },
+    { href: "/dashboard/reports", label: "Reports", icon: <BarChart2 size={20} /> },
+    { href: "/dashboard/settings", label: "Settings", icon: <Settings size={20} /> },
   ];
 
   const SidebarContent = () => (
@@ -37,7 +37,7 @@ export default function DashboardLayout({
             FinScribe <span className="w-2 h-2 rounded-full bg-accent inline-block" /> AI
           </Link>
           <button onClick={() => setSidebarOpen(false)} className="md:hidden">
-            <X size={24} className="text-white" />
+            <X size={20} className="text-zinc-400" />
           </button>
         </div>
         <nav className="p-4 space-y-2">
@@ -54,7 +54,7 @@ export default function DashboardLayout({
                     : "text-muted hover:bg-background hover:text-foreground border-l-2 border-transparent"
                 }`}
               >
-                <span className="text-xl">{link.icon}</span>
+                {link.icon}
                 {link.label}
               </Link>
             );
@@ -93,19 +93,17 @@ export default function DashboardLayout({
       )}
 
       {/* Mobile Sidebar */}
-      {sidebarOpen && (
-        <aside className="md:hidden fixed left-0 top-0 h-full w-64 bg-zinc-950 z-50 flex flex-col justify-between overflow-y-auto">
-          <SidebarContent />
-        </aside>
-      )}
+      <aside className={`md:hidden fixed top-0 right-0 h-full w-72 bg-zinc-950 border-l border-zinc-800 z-50 transform transition-transform duration-300 flex flex-col justify-between overflow-y-auto ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+        <SidebarContent />
+      </aside>
 
       {/* Mobile Nav Header */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-zinc-950 border-b border-zinc-800 px-4 py-3 flex items-center justify-between">
-        <span className="font-bold text-white">
-          FinScribe • AI
+        <span className="font-bold text-white text-lg">
+          FinScribe AI
         </span>
-        <button onClick={() => setSidebarOpen(true)}>
-          <Menu size={24} className="text-white" />
+        <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg hover:bg-zinc-800">
+          <Menu size={22} className="text-white" />
         </button>
       </div>
 
