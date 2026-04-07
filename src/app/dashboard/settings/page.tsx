@@ -26,7 +26,7 @@ export default function SettingsPage() {
   const savePreferences = () => {
     localStorage.setItem('finscribe-income', income)
     localStorage.setItem('finscribe-budget', budget)
-    setSavedMessage('Saved! ✓')
+    setSavedMessage('Saved! ')
     setTimeout(() => setSavedMessage(''), 2000)
   }
 

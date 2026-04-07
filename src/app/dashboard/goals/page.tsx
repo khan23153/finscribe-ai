@@ -13,7 +13,7 @@ type Goal = {
 
 const initialGoals: Goal[] = []
 
-const icons = ["🏠", "🚗", "✈️", "📱", "💍", "🎓", "🏦", "💻", "🎉"]
+const icons = ["🏠", "🚗", "✈️", "📱", "💍", "🎓", "🏦", "💻", ""]
 
 export default function GoalsPage() {
   const [goals, setGoals] = useState<Goal[]>(initialGoals)
@@ -158,7 +158,7 @@ export default function GoalsPage() {
                   </div>
                 </div>
                 <div className={`text-xs px-2.5 py-1 rounded-full font-medium ${onTrack ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-                  {onTrack ? 'On Track 🟢' : 'Behind 🔴'}
+                  {onTrack ? 'On Track ' : 'Behind '}
                 </div>
               </div>
 
@@ -211,7 +211,7 @@ export default function GoalsPage() {
                   disabled={progress >= 100}
                   className="w-full text-center py-2.5 border border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {progress >= 100 ? 'Goal Reached! 🎉' : '+ Add Money'}
+                  {progress >= 100 ? 'Goal Reached! ' : '+ Add Money'}
                 </button>
               )}
             </div>

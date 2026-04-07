@@ -1,7 +1,7 @@
 "use client";
+import { BarChart2, Settings, Plus, Target, IndianRupee, Inbox } from 'lucide-react';
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
-import { IndianRupee, Inbox } from "lucide-react";
 
 export default function DashboardPage() {
   const { isLoaded, isSignedIn, user } = useUser();
@@ -60,7 +60,7 @@ export default function DashboardPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-display font-bold">
-            Hi, {user.firstName || "there"}! 👋
+            Hi, {user.firstName || "there"}!
           </h1>
           <p className="text-muted mt-1">Here's what's happening with your money today.</p>
         </div>
@@ -300,17 +300,17 @@ export default function DashboardPage() {
       {/* Quick Actions Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Add Expense", icon: "➕", href: "/dashboard/expenses" },
-          { label: "View Reports", icon: "📊", href: "/dashboard/reports" },
-          { label: "Set Goal", icon: "🎯", href: "/dashboard/goals" },
-          { label: "Retake Setup", icon: "⚙️", href: "/onboarding/quiz" }
+          { label: "Add Expense", icon: <Plus size={20} />, href: "/dashboard/expenses" },
+          { label: "View Reports", icon: <BarChart2 size={20} />, href: "/dashboard/reports" },
+          { label: "Set Goal", icon: <Target size={20} />, href: "/dashboard/goals" },
+          { label: "Retake Setup", icon: <Settings size={20} />, href: "/onboarding/quiz" }
         ].map((action, i) => (
           <a
             key={i}
             href={action.href}
             className="bg-surface border border-border rounded-xl p-4 flex items-center gap-3 hover:border-accent transition-colors cursor-pointer"
           >
-            <span className="text-xl">{action.icon}</span>
+            {action.icon}
             <span className="font-medium text-sm">{action.label}</span>
           </a>
         ))}

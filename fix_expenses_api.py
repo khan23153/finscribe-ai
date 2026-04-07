@@ -1,4 +1,7 @@
-import { auth, currentUser } from '@clerk/nextjs/server'
+with open('src/app/api/expenses/route.ts', 'r') as f:
+    content = f.read()
+
+new_content = """import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { PrismaClient } from "@prisma/client"
 
@@ -99,3 +102,7 @@ export async function DELETE(req: NextRequest) {
     )
   }
 }
+"""
+
+with open('src/app/api/expenses/route.ts', 'w') as f:
+    f.write(new_content)

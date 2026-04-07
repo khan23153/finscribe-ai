@@ -222,7 +222,7 @@ export default function ExpensesPage() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-12 text-zinc-400">
-            <p className="text-4xl mb-3">💸</p>
+            <p className="text-4xl mb-3"></p>
             <p className="font-semibold">No expenses yet!</p>
             <p className="text-sm">Add your first expense above</p>
           </div>

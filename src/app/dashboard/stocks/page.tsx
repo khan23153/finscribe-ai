@@ -192,7 +192,7 @@ export default function StocksPage() {
             </form>
 
             <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400 flex items-start gap-2">
-              <span className="text-sm">⚠️</span>
+              <span className="text-sm"></span>
               <p>Not financial advice. Stock markets are subject to market risks. Read all related documents carefully before investing.</p>
             </div>
           </div>
