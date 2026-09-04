@@ -1,42 +1,103 @@
 'use client'
 
-import { useState } from 'react'
-import { Sparkles, Calendar } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Calendar, Sparkles } from 'lucide-react'
+import { startOfPeriod, type Expense } from '@/lib/expenses'
+
+const periods = ['This Week', 'This Month', 'Last 3 Months', 'This Year'] as const
+type Period = typeof periods[number]
+
+type AiResponse = {
+  reply?: string
+  error?: string
+}
 
 export default function ReportsPage() {
-  const [activePeriod, setActivePeriod] = useState("This Month")
-  const [aiReport, setAiReport] = useState("")
+  const [activePeriod, setActivePeriod] = useState<Period>('This Month')
+  const [expenses, setExpenses] = useState<Expense[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [aiReport, setAiReport] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
 
-  const periods = ["This Week", "This Month", "Last 3 Months", "This Year"]
+  useEffect(() => {
+    const controller = new AbortController()
 
-  // Mock data for zero state
-  const totalIncome = 0
-  const totalSpent = 0
-  const netSavings = 0
-  const savingsRate = 0
-  const categories: any[] = []
+    async function loadExpenses() {
+      try {
+        const response = await fetch('/api/expenses', {
+          cache: 'no-store',
+          signal: controller.signal,
+        })
+        const data = await response.json() as { expenses?: Expense[]; error?: string }
+        if (!response.ok) throw new Error(data.error ?? 'Unable to load report data.')
+        setExpenses(Array.isArray(data.expenses) ? data.expenses : [])
+      } catch (caughtError) {
+        if (caughtError instanceof DOMException && caughtError.name === 'AbortError') return
+        setError(caughtError instanceof Error ? caughtError.message : 'Unable to load report data.')
+      } finally {
+        if (!controller.signal.aborted) setIsLoading(false)
+      }
+    }
+
+    void loadExpenses()
+    return () => controller.abort()
+  }, [])
+
+  const periodExpenses = useMemo(() => {
+    const start = startOfPeriod(activePeriod)
+    return expenses.filter((expense) => new Date(expense.date) >= start)
+  }, [activePeriod, expenses])
+
+  const totalSpent = periodExpenses.reduce(
+    (total, expense) => total + Number(expense.amount),
+    0,
+  )
+  const averageTransaction = periodExpenses.length > 0
+    ? totalSpent / periodExpenses.length
+    : 0
+
+  const categories = Object.entries(
+    periodExpenses.reduce<Record<string, { amount: number; count: number }>>((totals, expense) => {
+      const current = totals[expense.category] ?? { amount: 0, count: 0 }
+      totals[expense.category] = {
+        amount: current.amount + Number(expense.amount),
+        count: current.count + 1,
+      }
+      return totals
+    }, {}),
+  ).sort((a, b) => b[1].amount - a[1].amount)
 
   const generateReport = async () => {
+    if (periodExpenses.length === 0) return
+
     setIsGenerating(true)
+    setAiReport('')
+    setError(null)
+
     try {
-      const response = await fetch("/api/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const categorySummary = categories
+        .map(([category, values]) => `${category}: ₹${values.amount.toFixed(2)} (${values.count} transactions)`)
+        .join('; ')
+
+      const response = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          systemPrompt: 'You are a financial analyst. English only. Be concise.',
-          messages: [
-            {
-              role: "user",
-              content: 'Generate a brief monthly financial health report with 3 insights and 2 recommendations for someone just starting to track their finances.'
-            }
-          ]
-        })
+          mode: 'report',
+          messages: [{
+            role: 'user',
+            content: `Period: ${activePeriod}. Total recorded expenses: ₹${totalSpent.toFixed(2)} across ${periodExpenses.length} transactions. Categories: ${categorySummary}. Give three observations and two practical recommendations.`,
+          }],
+        }),
       })
-      const data = await response.json()
+      const data = await response.json() as AiResponse
+      if (!response.ok || !data.reply) {
+        throw new Error(data.error ?? 'Unable to generate the report.')
+      }
       setAiReport(data.reply)
-    } catch (error) {
-      setAiReport("Failed to generate AI report. Please try again.")
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : 'Unable to generate the report.')
     } finally {
       setIsGenerating(false)
     }
@@ -44,61 +105,53 @@ export default function ReportsPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="font-display text-3xl font-bold">Financial Reports</h1>
-          <p className="text-muted">Analyze your spending patterns and financial health.</p>
-        </div>
+      <div>
+        <h1 className="font-display text-3xl font-bold">Financial Reports</h1>
+        <p className="text-muted">Analyze the expenses you have recorded.</p>
       </div>
 
-      {/* SECTION A - Period Selector */}
-      <div className="flex overflow-x-auto space-x-2 pb-2" style={{ scrollbarWidth: "none" }}>
-        {periods.map(p => (
+      {error && (
+        <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          {error}
+        </div>
+      )}
+
+      <div className="flex overflow-x-auto gap-2 pb-2" style={{ scrollbarWidth: 'none' }}>
+        {periods.map((period) => (
           <button
-            key={p}
-            onClick={() => setActivePeriod(p)}
+            key={period}
+            type="button"
+            onClick={() => setActivePeriod(period)}
             className={`px-4 py-2 rounded-full text-sm whitespace-nowrap transition-colors flex items-center gap-2 ${
-              activePeriod === p
-                ? "bg-accent text-black font-medium"
-                : "bg-surface text-muted border border-border hover:bg-background"
+              activePeriod === period
+                ? 'bg-accent text-black font-medium'
+                : 'bg-surface text-muted border border-border hover:bg-background'
             }`}
           >
             <Calendar size={14} />
-            {p}
+            {period}
           </button>
         ))}
       </div>
 
-      {/* SECTION B - Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-surface border border-zinc-800 p-5 rounded-xl border-l-4 border-l-blue-500">
-          <p className="text-sm text-muted mb-1">Total Income</p>
-          <p className="font-mono text-2xl font-bold">₹{totalIncome}</p>
-        </div>
-        <div className="bg-surface border border-zinc-800 p-5 rounded-xl border-l-4 border-l-red-500">
-          <p className="text-sm text-muted mb-1">Total Spent</p>
-          <p className="font-mono text-2xl font-bold">₹{totalSpent}</p>
-        </div>
-        <div className="bg-surface border border-zinc-800 p-5 rounded-xl border-l-4 border-l-green-500">
-          <p className="text-sm text-muted mb-1">Net Savings</p>
-          <p className="font-mono text-2xl font-bold">₹{netSavings}</p>
-        </div>
-        <div className="bg-surface border border-zinc-800 p-5 rounded-xl border-l-4 border-l-purple-500">
-          <p className="text-sm text-muted mb-1">Savings Rate</p>
-          <p className="font-mono text-2xl font-bold">{savingsRate}%</p>
-        </div>
+        <SummaryCard label="Total Spent" value={`₹${totalSpent.toLocaleString('en-IN')}`} color="red" />
+        <SummaryCard label="Transactions" value={periodExpenses.length.toString()} color="blue" />
+        <SummaryCard label="Average" value={`₹${averageTransaction.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`} color="green" />
+        <SummaryCard label="Top Category" value={categories[0]?.[0] ?? '—'} color="purple" />
       </div>
 
-      {/* SECTION C - Spending by Category */}
-      <div className="bg-surface border border-border rounded-xl p-6">
-        <h3 className="font-display font-bold text-lg mb-6">Spending by Category</h3>
-        {categories.length === 0 ? (
+      <section className="bg-surface border border-border rounded-xl p-6">
+        <h2 className="font-display font-bold text-lg mb-6">Spending by category</h2>
+        {isLoading ? (
+          <div className="h-32 rounded-lg bg-background animate-pulse" />
+        ) : categories.length === 0 ? (
           <div className="text-center py-12 text-muted">
-            <p>No spending data for this period</p>
+            <p>No spending data for this period.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse min-w-[520px]">
               <thead>
                 <tr className="bg-background/50 border-b border-border text-xs uppercase text-muted">
                   <th className="px-4 py-3 font-medium">Category</th>
@@ -108,43 +161,72 @@ export default function ReportsPage() {
                 </tr>
               </thead>
               <tbody>
-                {/* Data rows would go here */}
+                {categories.map(([category, values]) => (
+                  <tr key={category} className="border-b border-border/70">
+                    <td className="px-4 py-3 font-medium">{category}</td>
+                    <td className="px-4 py-3 text-right font-mono">₹{values.amount.toLocaleString('en-IN')}</td>
+                    <td className="px-4 py-3 text-right">
+                      {totalSpent > 0 ? Math.round((values.amount / totalSpent) * 100) : 0}%
+                    </td>
+                    <td className="px-4 py-3 text-right">{values.count}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
         )}
-      </div>
+      </section>
 
-      {/* SECTION D - AI Monthly Report */}
-      <div className="bg-surface border border-accent/30 rounded-xl p-6 relative overflow-hidden">
+      <section className="bg-surface border border-accent/30 rounded-xl p-6 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-2 h-full bg-accent" />
-        <div className="flex justify-between items-start mb-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6">
           <div>
-            <h3 className="font-display font-bold text-lg flex items-center gap-2">
-              <span className="text-2xl">🧠</span> AI Monthly Report
-            </h3>
-            <p className="text-sm text-muted mt-1">Get personalized insights based on your spending.</p>
+            <h2 className="font-display font-bold text-lg flex items-center gap-2">
+              <span aria-hidden="true">🧠</span> AI expense report
+            </h2>
+            <p className="text-sm text-muted mt-1">Generate insights from the selected period&apos;s totals.</p>
           </div>
           <button
-            onClick={generateReport}
-            disabled={isGenerating}
+            type="button"
+            onClick={() => void generateReport()}
+            disabled={isGenerating || periodExpenses.length === 0}
             className="bg-accent hover:bg-accent-dark text-black font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
           >
             <Sparkles size={16} />
-            {isGenerating ? "Generating..." : "Generate AI Report"}
+            {isGenerating ? 'Generating...' : 'Generate AI Report'}
           </button>
         </div>
 
         {aiReport && (
-          <div className="bg-background border border-border rounded-lg p-5 mt-4">
-            <div className="prose prose-sm prose-invert max-w-none">
-              <pre className="whitespace-pre-wrap font-sans text-sm text-zinc-300">
-                {aiReport}
-              </pre>
-            </div>
+          <div className="bg-background border border-border rounded-lg p-5 mt-4 whitespace-pre-wrap text-sm text-zinc-300">
+            {aiReport}
           </div>
         )}
-      </div>
+      </section>
+    </div>
+  )
+}
+
+function SummaryCard({
+  label,
+  value,
+  color,
+}: {
+  label: string
+  value: string
+  color: 'red' | 'blue' | 'green' | 'purple'
+}) {
+  const borderColors = {
+    red: 'border-l-red-500',
+    blue: 'border-l-blue-500',
+    green: 'border-l-green-500',
+    purple: 'border-l-purple-500',
+  }
+
+  return (
+    <div className={`bg-surface border border-border p-5 rounded-xl border-l-4 ${borderColors[color]}`}>
+      <p className="text-sm text-muted mb-1">{label}</p>
+      <p className="font-mono text-xl md:text-2xl font-bold truncate">{value}</p>
     </div>
   )
 }

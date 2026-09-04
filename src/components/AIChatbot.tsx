@@ -7,19 +7,24 @@ type Message = {
   content: string
 }
 
+type AiResponse = {
+  reply?: string
+  error?: string
+}
+
 export default function AIChatbot() {
   const [isOpen, setIsOpen] = useState(false)
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: "Hello! I am FinScribe AI. Ask me anything about:\n- Your spending summary\n- Financial advice\n- EMI calculations\n- Investment tips"
+      content: "Hello! I am FinScribe AI. Ask me about:\n- Budgeting concepts\n- Figures you share here\n- EMI calculations\n- Investment education"
     }
   ])
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const quickPrompts = ["Spending summary", "Calculate EMI", "Savings tips"]
+  const quickPrompts = ["Build a simple budget", "Explain EMI", "Savings tips"]
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -46,15 +51,23 @@ export default function AIChatbot() {
         }),
       })
 
-      const data = await response.json()
+      const data = await response.json() as AiResponse
 
-      if (response.ok) {
-        setMessages([...newMessages, { role: 'assistant', content: data.reply }])
-      } else {
-        setMessages([...newMessages, { role: 'assistant', content: `Error: ${data.reply}` }])
+      if (!response.ok || !data.reply) {
+        throw new Error(data.error ?? 'The AI assistant returned an invalid response.')
       }
-    } catch (error) {
-      setMessages([...newMessages, { role: 'assistant', content: "Sorry, I couldn't process your request. Please try again." }])
+
+      setMessages([...newMessages, { role: 'assistant', content: data.reply }])
+    } catch (caughtError) {
+      setMessages([
+        ...newMessages,
+        {
+          role: 'assistant',
+          content: caughtError instanceof Error
+            ? caughtError.message
+            : "Sorry, I couldn't process your request. Please try again.",
+        },
+      ])
     } finally {
       setIsLoading(false)
     }
@@ -70,8 +83,7 @@ export default function AIChatbot() {
       {/* Floating Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-green-500 hover:bg-green-600 text-white rounded-full shadow-lg flex items-center justify-center text-2xl z-50 transition-all hover:scale-105"
-        style={{ animation: isOpen ? 'none' : 'pulse 2s infinite' }}
+        className={`fixed bottom-6 right-6 w-14 h-14 bg-green-500 hover:bg-green-600 text-white rounded-full shadow-lg flex items-center justify-center text-2xl z-50 transition-all hover:scale-105 ${isOpen ? '' : 'ai-pulse'}`}
         aria-label="Toggle AI Assistant"
       >
         {isOpen ? '✕' : '🧠'}
@@ -79,15 +91,17 @@ export default function AIChatbot() {
 
       {/* Chat Panel */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 w-80 md:w-96 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden z-50 max-h-[600px] animate-in slide-in-from-bottom-5">
+        <div className="fixed bottom-24 left-4 right-4 md:left-auto md:right-6 md:w-96 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden z-50 max-h-[min(600px,calc(100vh-8rem))] animate-in slide-in-from-bottom-5">
           {/* Header */}
           <div className="bg-zinc-950 px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
             <h3 className="font-bold text-zinc-100 flex items-center gap-2">
               <span className="text-xl">🧠</span> FinScribe AI Assistant
             </h3>
             <button
+              type="button"
               onClick={() => setIsOpen(false)}
               className="text-zinc-500 hover:text-zinc-300 transition-colors"
+              aria-label="Close AI assistant"
             >
               ✕
             </button>
@@ -128,6 +142,7 @@ export default function AIChatbot() {
             <div className="px-4 pb-2 flex flex-wrap gap-2">
               {quickPrompts.map(prompt => (
                 <button
+                  type="button"
                   key={prompt}
                   onClick={() => handleSend(prompt)}
                   className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 px-3 py-1.5 rounded-full transition-colors whitespace-nowrap"
@@ -140,7 +155,9 @@ export default function AIChatbot() {
 
           {/* Input */}
           <form onSubmit={handleSubmit} className="p-3 border-t border-zinc-800 bg-zinc-950/50 flex space-x-2">
+            <label htmlFor="ai-chat-input" className="sr-only">Ask FinScribe AI</label>
             <input
+              id="ai-chat-input"
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -159,13 +176,6 @@ export default function AIChatbot() {
         </div>
       )}
 
-      <style dangerouslySetInnerHTML={{__html: `
-        @keyframes pulse {
-          0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
-          70% { box-shadow: 0 0 0 15px rgba(34, 197, 94, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
-        }
-      `}} />
     </>
   )
 }

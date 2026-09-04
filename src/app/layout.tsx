@@ -6,10 +6,15 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://finscribe-ai.vercel.app'),
   title: "FinScribe AI — Smart Finance",
   description: "Modern SaaS financial ledger powered by AI.",
-  openGraph: {
-    images: [{ url: '/og-placeholder.png' }],
-  },
 };
+
+const themeScript = `
+  try {
+    if (localStorage.getItem('finscribe-theme') === 'light') {
+      document.documentElement.classList.add('light');
+    }
+  } catch {}
+`;
 
 export default function RootLayout({
   children,
@@ -18,14 +23,9 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider>
-      <html lang="en">
+      <html lang="en" suppressHydrationWarning>
         <head>
-          <link rel="preconnect" href="https://fonts.googleapis.com" />
-          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-          <link
-            href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=JetBrains+Mono:wght@400&family=Syne:wght@400;600;700;800&display=swap"
-            rel="stylesheet"
-          />
+          <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         </head>
         <body className="bg-background text-foreground font-body min-h-screen antialiased">
           {children}

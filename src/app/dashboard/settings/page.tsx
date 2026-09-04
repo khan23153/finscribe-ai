@@ -1,32 +1,23 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useUser, useClerk } from '@clerk/nextjs'
+import { useState } from 'react'
+import { useUser, useClerk, UserButton } from '@clerk/nextjs'
 import ThemeToggle from '../../../components/ThemeToggle'
+import { useLocalStorageValue } from '@/lib/use-local-storage'
 
 export default function SettingsPage() {
   const { user } = useUser()
   const { signOut } = useClerk()
 
-  const [emailNotifs, setEmailNotifs] = useState(true)
-  const [weeklyReport, setWeeklyReport] = useState(true)
-  const [budgetAlerts, setBudgetAlerts] = useState(false)
-
-  const [income, setIncome] = useState('')
-  const [budget, setBudget] = useState('')
+  const [emailNotifs, setEmailNotifs] = useLocalStorageValue('finscribe-monthly-report', 'true')
+  const [weeklyReport, setWeeklyReport] = useLocalStorageValue('finscribe-weekly-report', 'true')
+  const [budgetAlerts, setBudgetAlerts] = useLocalStorageValue('finscribe-budget-alerts', 'false')
+  const [income, setIncome] = useLocalStorageValue('finscribe-income', '')
+  const [budget, setBudget] = useLocalStorageValue('finscribe-budget', '')
   const [savedMessage, setSavedMessage] = useState('')
 
-  useEffect(() => {
-    const savedIncome = localStorage.getItem('finscribe-income')
-    const savedBudget = localStorage.getItem('finscribe-budget')
-    if (savedIncome) setIncome(savedIncome)
-    if (savedBudget) setBudget(savedBudget)
-  }, [])
-
   const savePreferences = () => {
-    localStorage.setItem('finscribe-income', income)
-    localStorage.setItem('finscribe-budget', budget)
-    setSavedMessage('Saved! ')
+    setSavedMessage('Saved!')
     setTimeout(() => setSavedMessage(''), 2000)
   }
 
@@ -35,11 +26,11 @@ export default function SettingsPage() {
       {/* SECTION 1 - Profile Card */}
       <div className="bg-surface border border-zinc-800 p-6 rounded-xl text-zinc-100 flex items-center space-x-6">
         <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-zinc-700 bg-accent text-black flex items-center justify-center flex-shrink-0">
-          {user?.imageUrl ? (
-            <img src={user.imageUrl} alt="Profile Avatar" className="w-full h-full object-cover" />
+          {user ? (
+            <UserButton appearance={{ elements: { userButtonAvatarBox: 'w-20 h-20' } }} />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-3xl font-bold">
-              {user?.firstName?.[0] || user?.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() || '?'}
+              ?
             </div>
           )}
         </div>
@@ -89,6 +80,10 @@ export default function SettingsPage() {
       <div className="bg-surface border border-zinc-800 p-6 rounded-xl text-zinc-100">
         <h3 className="text-lg font-bold mb-6 border-b border-zinc-800 pb-4">Notification Preferences</h3>
 
+        <p className="mb-6 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+          Notification delivery is not connected yet. These choices are saved in this browser for future use.
+        </p>
+
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -96,11 +91,11 @@ export default function SettingsPage() {
               <p className="text-sm text-zinc-500 mt-1">Get a summary of your weekly expenses every Monday.</p>
             </div>
             <button
-              onClick={() => setWeeklyReport(!weeklyReport)}
-              className={`w-11 h-6 rounded-full transition-colors relative flex items-center ${weeklyReport ? 'bg-accent' : 'bg-zinc-700'}`}
+              onClick={() => setWeeklyReport(weeklyReport === 'true' ? 'false' : 'true')}
+              className={`w-11 h-6 rounded-full transition-colors relative flex items-center ${weeklyReport === 'true' ? 'bg-accent' : 'bg-zinc-700'}`}
               aria-label="Toggle Weekly spending report"
             >
-              <div className={`w-4 h-4 rounded-full bg-white absolute transform transition-transform ${weeklyReport ? 'translate-x-6' : 'translate-x-1'}`} />
+              <div className={`w-4 h-4 rounded-full bg-white absolute transform transition-transform ${weeklyReport === 'true' ? 'translate-x-6' : 'translate-x-1'}`} />
             </button>
           </div>
 
@@ -110,11 +105,11 @@ export default function SettingsPage() {
               <p className="text-sm text-zinc-500 mt-1">Get notified when you approach 80% of your category budgets.</p>
             </div>
             <button
-              onClick={() => setBudgetAlerts(!budgetAlerts)}
-              className={`w-11 h-6 rounded-full transition-colors relative flex items-center ${budgetAlerts ? 'bg-accent' : 'bg-zinc-700'}`}
+              onClick={() => setBudgetAlerts(budgetAlerts === 'true' ? 'false' : 'true')}
+              className={`w-11 h-6 rounded-full transition-colors relative flex items-center ${budgetAlerts === 'true' ? 'bg-accent' : 'bg-zinc-700'}`}
               aria-label="Toggle Budget alerts"
             >
-              <div className={`w-4 h-4 rounded-full bg-white absolute transform transition-transform ${budgetAlerts ? 'translate-x-6' : 'translate-x-1'}`} />
+              <div className={`w-4 h-4 rounded-full bg-white absolute transform transition-transform ${budgetAlerts === 'true' ? 'translate-x-6' : 'translate-x-1'}`} />
             </button>
           </div>
 
@@ -124,11 +119,11 @@ export default function SettingsPage() {
               <p className="text-sm text-zinc-500 mt-1">Receive a detailed monthly financial breakdown.</p>
             </div>
             <button
-              onClick={() => setEmailNotifs(!emailNotifs)}
-              className={`w-11 h-6 rounded-full transition-colors relative flex items-center ${emailNotifs ? 'bg-accent' : 'bg-zinc-700'}`}
+              onClick={() => setEmailNotifs(emailNotifs === 'true' ? 'false' : 'true')}
+              className={`w-11 h-6 rounded-full transition-colors relative flex items-center ${emailNotifs === 'true' ? 'bg-accent' : 'bg-zinc-700'}`}
               aria-label="Toggle Monthly notifications"
             >
-              <div className={`w-4 h-4 rounded-full bg-white absolute transform transition-transform ${emailNotifs ? 'translate-x-6' : 'translate-x-1'}`} />
+              <div className={`w-4 h-4 rounded-full bg-white absolute transform transition-transform ${emailNotifs === 'true' ? 'translate-x-6' : 'translate-x-1'}`} />
             </button>
           </div>
         </div>
@@ -150,6 +145,9 @@ export default function SettingsPage() {
               onChange={e => setIncome(e.target.value)}
               className="bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-accent"
               placeholder="0.00"
+              min="0"
+              max="1000000000"
+              step="0.01"
             />
           </div>
 
@@ -164,6 +162,9 @@ export default function SettingsPage() {
               onChange={e => setBudget(e.target.value)}
               className="bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-accent"
               placeholder="0.00"
+              min="0"
+              max="1000000000"
+              step="0.01"
             />
           </div>
 

@@ -1,266 +1,214 @@
-"use client";
-import { BarChart2, Settings, Plus, Target, IndianRupee, Inbox } from 'lucide-react';
-import { useEffect, useState } from "react";
-import { useUser } from "@clerk/nextjs";
+'use client'
+
+import Link from 'next/link'
+import { useEffect, useMemo, useState } from 'react'
+import { useUser } from '@clerk/nextjs'
+import { BarChart2, Inbox, Plus, Settings, Target } from 'lucide-react'
+import { isInMonth, type Expense } from '@/lib/expenses'
+
+const chartColors = [
+  '#22c55e',
+  '#3b82f6',
+  '#eab308',
+  '#a855f7',
+  '#ec4899',
+  '#f97316',
+  '#71717a',
+]
 
 export default function DashboardPage() {
-  const { isLoaded, isSignedIn, user } = useUser();
-  const [expenses, setExpenses] = useState<any[]>([]);
-  const [monthlySpend, setMonthlySpend] = useState(0);
-  const [transactionCount, setTransactionCount] = useState(0);
-  const [categoryData, setCategoryData] = useState<Record<string, number>>({});
-  const [isLoading, setIsLoading] = useState(true);
+  const { isLoaded, isSignedIn, user } = useUser()
+  const [expenses, setExpenses] = useState<Expense[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchDashboardData();
-    // Set bypass cookie
-    document.cookie = 'onboarding-bypass=true; max-age=2592000; path=/';
-  }, []);
+    const controller = new AbortController()
 
-  const fetchDashboardData = async () => {
-    try {
-      const res = await fetch('/api/expenses');
-      const data = await res.json();
-      const expensesData = data.expenses || [];
-      setExpenses(expensesData);
+    async function loadExpenses() {
+      try {
+        const response = await fetch('/api/expenses', {
+          cache: 'no-store',
+          signal: controller.signal,
+        })
+        const data = await response.json() as { expenses?: Expense[]; error?: string }
 
-      // Calculate totals
-      const total = expensesData.reduce(
-        (sum: number, e: any) => sum + Number(e.amount), 0
-      );
-      setMonthlySpend(total);
-      setTransactionCount(expensesData.length);
+        if (!response.ok) {
+          throw new Error(data.error ?? 'Unable to load dashboard data.')
+        }
 
-      // Category breakdown
-      const cats: Record<string, number> = {};
-      expensesData.forEach((e: any) => {
-        cats[e.category] = (cats[e.category] || 0) + Number(e.amount);
-      });
-      setCategoryData(cats);
-
-    } catch (err) {
-      console.error('Dashboard fetch error:', err);
-    } finally {
-      setIsLoading(false);
+        setExpenses(Array.isArray(data.expenses) ? data.expenses : [])
+      } catch (caughtError) {
+        if (caughtError instanceof DOMException && caughtError.name === 'AbortError') return
+        setError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : 'Unable to load dashboard data.',
+        )
+      } finally {
+        if (!controller.signal.aborted) setIsLoading(false)
+      }
     }
-  };
 
-  if (!isLoaded || !isSignedIn) {
-    return null;
-  }
+    void loadExpenses()
+    return () => controller.abort()
+  }, [])
 
-  const hasData = expenses.length > 0;
+  const currentMonth = useMemo(() => new Date(), [])
+  const monthlyExpenses = useMemo(
+    () => expenses.filter((expense) => isInMonth(expense.date, currentMonth)),
+    [currentMonth, expenses],
+  )
 
-  // For the chart and design
-  const areaD = "M0,120 L0,90 Q50,75 100,60 T200,75 T300,40 T400,55 T500,25 L500,120 Z";
-  const pathD = "M0,90 Q50,75 100,60 T200,75 T300,40 T400,55 T500,25";
+  const monthlySpend = monthlyExpenses.reduce(
+    (total, expense) => total + Number(expense.amount),
+    0,
+  )
+
+  const categoryData = monthlyExpenses.reduce<Record<string, number>>((totals, expense) => {
+    totals[expense.category] = (totals[expense.category] ?? 0) + Number(expense.amount)
+    return totals
+  }, {})
+
+  const categoryEntries = Object.entries(categoryData).sort((a, b) => b[1] - a[1])
+  const donutBackground = buildDonutGradient(categoryEntries, monthlySpend)
+  const trendData = buildMonthlyTrend(expenses, currentMonth)
+  const maxTrend = Math.max(...trendData.map((item) => item.amount), 1)
+  const hasData = monthlyExpenses.length > 0
+
+  if (!isLoaded || !isSignedIn) return null
 
   return (
     <div className="space-y-6 max-w-[1200px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-display font-bold">
-            Hi, {user.firstName || "there"}!
+            Hi, {user.firstName || 'there'}!
           </h1>
-          <p className="text-muted mt-1">Here's what's happening with your money today.</p>
+          <p className="text-muted mt-1">Here&apos;s what&apos;s happening with your money this month.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <a
-            href="/dashboard/expenses"
-            className="bg-accent hover:bg-accent-dark text-background px-5 py-2.5 rounded-full font-bold text-sm transition-colors flex items-center gap-2"
-          >
-            <span>+</span> Add Transaction
-          </a>
-        </div>
+        <Link
+          href="/dashboard/expenses"
+          className="bg-accent hover:bg-accent-dark text-background px-5 py-2.5 rounded-full font-bold text-sm transition-colors flex items-center gap-2"
+        >
+          <Plus size={18} /> Add Transaction
+        </Link>
       </div>
 
-      {/* Main KPI Cards */}
+      {error && (
+        <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-surface border border-border p-6 rounded-xl relative overflow-hidden group hover:border-accent/50 transition-colors">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"></div>
-          <div className="relative z-10">
-            <h3 className="text-sm font-medium text-muted mb-1 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-accent"></span> Monthly Spend
-            </h3>
-            <p className="text-3xl font-mono font-bold mt-2">
-              <span className="text-accent">₹</span>
-              {monthlySpend.toLocaleString('en-IN')}
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-surface border border-border p-6 rounded-xl relative overflow-hidden group hover:border-accent/50 transition-colors">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"></div>
-          <div className="relative z-10">
-            <h3 className="text-sm font-medium text-muted mb-1 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-accent-dark"></span> Transactions
-            </h3>
-            <p className="text-3xl font-mono font-bold mt-2 text-foreground">
-              {transactionCount}
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-surface border border-border p-6 rounded-xl relative overflow-hidden group hover:border-accent/50 transition-colors">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"></div>
-          <div className="relative z-10">
-            <h3 className="text-sm font-medium text-muted mb-1 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-green-500"></span> Active Categories
-            </h3>
-            <p className="text-3xl font-mono font-bold mt-2">
-              {Object.keys(categoryData).length}
-            </p>
-          </div>
-        </div>
+        <MetricCard label="Monthly Spend" value={`₹${monthlySpend.toLocaleString('en-IN')}`} />
+        <MetricCard label="Transactions" value={monthlyExpenses.length.toString()} />
+        <MetricCard label="Active Categories" value={categoryEntries.length.toString()} />
       </div>
 
-      {/* Two Column Layout for Charts/Tables */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Spending Trend (Area Chart Mock) */}
-        <div className="lg:col-span-3 bg-surface border border-border p-6 rounded-xl flex flex-col min-h-[300px]">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="font-display font-bold text-lg">Spending Trend</h3>
-            <select className="bg-background border border-border rounded-md px-2 py-1 text-xs text-muted outline-none focus:border-accent">
-              <option>This Month</option>
-              <option>Last Month</option>
-              <option>This Year</option>
-            </select>
+        <section className="lg:col-span-3 bg-surface border border-border p-6 rounded-xl min-h-[300px]">
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="font-display font-bold text-lg">Six-month spending trend</h2>
+            <span className="text-xs text-muted">Recorded expenses</span>
           </div>
-          <div className="flex-1 relative flex items-end">
-            {!hasData ? (
-               <div className="absolute inset-0 flex flex-col items-center justify-center text-muted">
-                 <Inbox className="w-10 h-10 mb-2 opacity-50" />
-                 <p className="text-sm">Start tracking to see your spending trends</p>
-               </div>
-            ) : (
-              <>
-                {/* Y-axis labels mock */}
-                <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-xs text-muted pb-6">
-                  <span>30k</span>
-                  <span>15k</span>
-                  <span>0</span>
-                </div>
-                {/* SVG Chart */}
-                <div className="ml-8 w-full h-full relative overflow-hidden pb-6">
-                  <svg viewBox="0 0 500 120" preserveAspectRatio="none" className="w-full h-full">
-                    <defs>
-                      <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="var(--color-accent)" stopOpacity="0.3" />
-                        <stop offset="100%" stopColor="var(--color-accent)" stopOpacity="0" />
-                      </linearGradient>
-                    </defs>
-                    <path d={areaD} fill="url(#areaGradient)" />
-                    <path d={pathD} fill="none" stroke="var(--color-accent)" strokeWidth="3" vectorEffect="non-scaling-stroke" />
 
-                    {/* Data points */}
-                    <circle cx="0" cy="90" r="4" fill="var(--color-background)" stroke="var(--color-accent)" strokeWidth="2" />
-                    <circle cx="100" cy="60" r="4" fill="var(--color-background)" stroke="var(--color-accent)" strokeWidth="2" />
-                    <circle cx="200" cy="75" r="4" fill="var(--color-background)" stroke="var(--color-accent)" strokeWidth="2" />
-                    <circle cx="300" cy="40" r="4" fill="var(--color-background)" stroke="var(--color-accent)" strokeWidth="2" />
-                    <circle cx="400" cy="55" r="4" fill="var(--color-background)" stroke="var(--color-accent)" strokeWidth="2" />
-                    <circle cx="500" cy="25" r="4" fill="var(--color-background)" stroke="var(--color-accent)" strokeWidth="2" />
-                  </svg>
-                  {/* X-axis labels mock */}
-                  <div className="absolute bottom-0 left-0 w-full flex justify-between text-xs text-muted">
-                    <span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span>
-                  </div>
+          {isLoading ? (
+            <LoadingBlock />
+          ) : expenses.length === 0 ? (
+            <EmptyState message="Start tracking to see your spending trend." />
+          ) : (
+            <div className="h-52 flex items-end gap-3 sm:gap-5" aria-label="Monthly spending bar chart">
+              {trendData.map((item) => (
+                <div key={item.key} className="flex-1 min-w-0 flex flex-col items-center gap-2 h-full justify-end">
+                  <span className="text-[10px] sm:text-xs text-muted truncate max-w-full">
+                    ₹{compactAmount(item.amount)}
+                  </span>
+                  <div
+                    className="w-full max-w-12 bg-accent rounded-t-md min-h-1 transition-[height]"
+                    style={{ height: `${Math.max((item.amount / maxTrend) * 150, 4)}px` }}
+                    title={`${item.label}: ₹${item.amount.toLocaleString('en-IN')}`}
+                  />
+                  <span className="text-xs text-muted">{item.label}</span>
                 </div>
-              </>
-            )}
-          </div>
-        </div>
+              ))}
+            </div>
+          )}
+        </section>
 
-        {/* Category Breakdown */}
-        <div className="lg:col-span-2 bg-surface border border-border p-6 rounded-xl flex flex-col">
-          <h3 className="font-display font-bold text-lg mb-6">Category Breakdown</h3>
-          {!hasData ? (
-             <div className="flex-1 flex flex-col items-center justify-center text-muted min-h-[200px]">
-               <div className="w-32 h-32 rounded-full border-4 border-dashed border-border flex items-center justify-center mb-4">
-                 <span className="text-sm">0%</span>
-               </div>
-               <p className="text-sm">No spending data yet</p>
-             </div>
+        <section className="lg:col-span-2 bg-surface border border-border p-6 rounded-xl flex flex-col">
+          <h2 className="font-display font-bold text-lg mb-6">Category breakdown</h2>
+          {isLoading ? (
+            <LoadingBlock />
+          ) : !hasData ? (
+            <EmptyState message="No spending data for this month." />
           ) : (
             <>
-              <div className="flex-1 flex items-center justify-center relative min-h-[200px]">
-                {/* CSS Conic Gradient Donut */}
+              <div className="flex-1 flex items-center justify-center min-h-[200px]">
                 <div
-                  className="w-48 h-48 rounded-full flex items-center justify-center relative"
-                  style={{
-                    background: `conic-gradient(
-                      var(--color-accent) 0% 35%,
-                      var(--color-accent-dark) 35% 55%,
-                      #4ade80 55% 80%,
-                      #86efac 80% 100%
-                    )`
-                  }}
+                  className="w-48 h-48 rounded-full flex items-center justify-center"
+                  style={{ background: donutBackground }}
+                  aria-label="Spending distribution by category"
                 >
-                  <div className="w-32 h-32 bg-surface rounded-full flex flex-col items-center justify-center border border-surface">
-                    <span className="font-mono font-bold text-xl">{Object.keys(categoryData).length}</span>
-                    <span className="text-xs text-muted">Categories</span>
+                  <div className="w-32 h-32 bg-surface rounded-full flex flex-col items-center justify-center">
+                    <span className="font-mono font-bold text-xl">₹{compactAmount(monthlySpend)}</span>
+                    <span className="text-xs text-muted">This month</span>
                   </div>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4 mt-6">
-                {Object.entries(categoryData).slice(0, 4).map(([cat, amount], i) => {
-                  const colors = ['bg-accent', 'bg-accent-dark', 'bg-[#4ade80]', 'bg-[#86efac]'];
-                  const colorClass = colors[i % colors.length];
-                  const percentage = Math.round((amount / monthlySpend) * 100);
-
-                  return (
-                    <div key={cat} className="flex items-center gap-2">
-                      <span className={`w-3 h-3 rounded-full ${colorClass.startsWith('bg-[') ? '' : colorClass}`} style={colorClass.startsWith('bg-[') ? {backgroundColor: colorClass.slice(4, -1)} : {}}></span>
-                      <span className="text-sm">{cat} ({percentage}%)</span>
-                    </div>
-                  );
-                })}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
+                {categoryEntries.slice(0, chartColors.length).map(([category, amount], index) => (
+                  <div key={category} className="flex items-center gap-2 min-w-0">
+                    <span
+                      className="w-3 h-3 rounded-full shrink-0"
+                      style={{ backgroundColor: chartColors[index] }}
+                    />
+                    <span className="text-sm truncate">
+                      {category} ({Math.round((amount / monthlySpend) * 100)}%)
+                    </span>
+                  </div>
+                ))}
               </div>
             </>
           )}
-        </div>
+        </section>
       </div>
 
-      {/* AI Insight Card */}
-      <div className="bg-accent/5 border border-accent/30 rounded-xl p-6 flex flex-col sm:flex-row items-center gap-6 justify-between">
+      <section className="bg-accent/5 border border-accent/30 rounded-xl p-6 flex flex-col sm:flex-row items-center gap-6 justify-between">
         <div className="flex items-start gap-4">
-          <div className="text-3xl animate-bounce mt-1">🧠</div>
+          <div className="text-3xl" aria-hidden="true">🧠</div>
           <div>
-            <h4 className="font-display font-bold text-lg text-accent mb-1">AI Financial Insight</h4>
+            <h2 className="font-display font-bold text-lg text-accent mb-1">Financial insight</h2>
             <p className="text-sm text-foreground/80 leading-relaxed max-w-2xl">
-              {hasData
-                ? "Based on your spending patterns, you spend 34% more on weekends. Consider setting a weekend budget of ₹3,000 to save ₹8,400/month."
-                : "Add your first expense to get personalized AI insights about your spending patterns."}
+              {categoryEntries[0]
+                ? `${categoryEntries[0][0]} is your largest recorded category this month at ₹${categoryEntries[0][1].toLocaleString('en-IN')}. Review its transactions before setting next month's budget.`
+                : 'Add your first expense to receive insights based on your recorded spending.'}
             </p>
           </div>
         </div>
         {!hasData && (
-          <a
+          <Link
             href="/dashboard/expenses"
             className="bg-accent hover:bg-accent-dark text-background px-6 py-2 rounded-full font-bold text-sm transition-colors whitespace-nowrap"
           >
             Add Expenses &rarr;
-          </a>
+          </Link>
         )}
-      </div>
+      </section>
 
-      {/* Recent Transactions Table */}
-      <div className="bg-surface border border-border rounded-xl overflow-hidden flex flex-col">
+      <section className="bg-surface border border-border rounded-xl overflow-hidden flex flex-col">
         <div className="p-6 border-b border-border flex items-center justify-between">
-          <h3 className="font-display font-bold text-lg">Recent Transactions</h3>
-          <a href="/dashboard/expenses" className="text-sm text-accent hover:underline">View All &rarr;</a>
+          <h2 className="font-display font-bold text-lg">Recent transactions</h2>
+          <Link href="/dashboard/expenses" className="text-sm text-accent hover:underline">
+            View All &rarr;
+          </Link>
         </div>
 
-        {!hasData ? (
-          <div className="flex flex-col items-center justify-center py-16 text-muted">
-            <Inbox className="w-12 h-12 mb-4 opacity-50" />
-            <p className="text-lg font-medium mb-6">No transactions yet. Add your first expense!</p>
-            <a
-              href="/dashboard/expenses"
-              className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-full font-bold text-sm transition-colors"
-            >
-              Add Expense
-            </a>
-          </div>
+        {isLoading ? (
+          <div className="p-6"><LoadingBlock /></div>
+        ) : expenses.length === 0 ? (
+          <div className="py-12"><EmptyState message="No transactions yet. Add your first expense." /></div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[600px]">
@@ -270,24 +218,18 @@ export default function DashboardPage() {
                   <th className="px-6 py-4 font-medium">Description</th>
                   <th className="px-6 py-4 font-medium">Category</th>
                   <th className="px-6 py-4 font-medium text-right">Amount</th>
-                  <th className="px-6 py-4 font-medium text-center">Status</th>
                 </tr>
               </thead>
               <tbody>
-                {expenses.slice(0, 5).map((tx) => (
-                  <tr key={tx.id} className="border-b border-border hover:bg-background/50 transition-colors">
-                    <td className="px-6 py-4 text-sm text-muted whitespace-nowrap">{new Date(tx.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}</td>
-                    <td className="px-6 py-4 text-sm font-medium">{tx.description}</td>
-                    <td className="px-6 py-4 text-sm text-muted">
-                      <span className="bg-background px-2 py-1 rounded border border-border">{tx.category}</span>
+                {expenses.slice(0, 5).map((expense) => (
+                  <tr key={expense.id} className="border-b border-border hover:bg-background/50 transition-colors">
+                    <td className="px-6 py-4 text-sm text-muted whitespace-nowrap">
+                      {new Date(expense.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                     </td>
+                    <td className="px-6 py-4 text-sm font-medium">{expense.description}</td>
+                    <td className="px-6 py-4 text-sm text-muted">{expense.category}</td>
                     <td className="px-6 py-4 font-mono font-bold text-right text-accent">
-                      ₹{Number(tx.amount).toLocaleString('en-IN')}
-                    </td>
-                    <td className="px-6 py-4 flex justify-center">
-                      <span className="text-xs font-bold px-2 py-1 rounded-full border bg-accent/10 border-accent/20 text-accent">
-                        Completed
-                      </span>
+                      ₹{Number(expense.amount).toLocaleString('en-IN')}
                     </td>
                   </tr>
                 ))}
@@ -295,26 +237,87 @@ export default function DashboardPage() {
             </table>
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Quick Actions Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Add Expense", icon: <Plus size={20} />, href: "/dashboard/expenses" },
-          { label: "View Reports", icon: <BarChart2 size={20} />, href: "/dashboard/reports" },
-          { label: "Set Goal", icon: <Target size={20} />, href: "/dashboard/goals" },
-          { label: "Retake Setup", icon: <Settings size={20} />, href: "/onboarding/quiz" }
-        ].map((action, i) => (
-          <a
-            key={i}
-            href={action.href}
-            className="bg-surface border border-border rounded-xl p-4 flex items-center gap-3 hover:border-accent transition-colors cursor-pointer"
-          >
-            {action.icon}
-            <span className="font-medium text-sm">{action.label}</span>
-          </a>
-        ))}
+          { label: 'Add Expense', icon: Plus, href: '/dashboard/expenses' },
+          { label: 'View Reports', icon: BarChart2, href: '/dashboard/reports' },
+          { label: 'Set Goal', icon: Target, href: '/dashboard/goals' },
+          { label: 'Retake Setup', icon: Settings, href: '/onboarding/quiz' },
+        ].map((action) => {
+          const Icon = action.icon
+          return (
+            <Link
+              key={action.href}
+              href={action.href}
+              className="bg-surface border border-border rounded-xl p-4 flex items-center gap-3 hover:border-accent transition-colors"
+            >
+              <Icon size={20} />
+              <span className="font-medium text-sm">{action.label}</span>
+            </Link>
+          )
+        })}
       </div>
     </div>
-  );
+  )
+}
+
+function MetricCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-surface border border-border p-6 rounded-xl hover:border-accent/50 transition-colors">
+      <h2 className="text-sm font-medium text-muted mb-2">{label}</h2>
+      <p className="text-3xl font-mono font-bold">{value}</p>
+    </div>
+  )
+}
+
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div className="h-full flex flex-col items-center justify-center text-muted text-center px-4">
+      <Inbox className="w-10 h-10 mb-2 opacity-50" />
+      <p className="text-sm">{message}</p>
+    </div>
+  )
+}
+
+function LoadingBlock() {
+  return <div className="h-40 rounded-lg bg-background animate-pulse" aria-label="Loading" />
+}
+
+function compactAmount(amount: number) {
+  return Intl.NumberFormat('en-IN', {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(amount)
+}
+
+function buildMonthlyTrend(expenses: Expense[], now: Date) {
+  return Array.from({ length: 6 }, (_, index) => {
+    const month = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1)
+    const amount = expenses
+      .filter((expense) => isInMonth(expense.date, month))
+      .reduce((total, expense) => total + Number(expense.amount), 0)
+
+    return {
+      key: `${month.getFullYear()}-${month.getMonth()}`,
+      label: month.toLocaleDateString('en-IN', { month: 'short' }),
+      amount,
+    }
+  })
+}
+
+function buildDonutGradient(entries: Array<[string, number]>, total: number) {
+  if (total <= 0) return 'var(--color-border)'
+
+  let start = 0
+  const stops = entries.slice(0, chartColors.length).map(([, amount], index) => {
+    const end = start + (amount / total) * 100
+    const segment = `${chartColors[index]} ${start}% ${end}%`
+    start = end
+    return segment
+  })
+
+  if (start < 100) stops.push(`${chartColors.at(-1)} ${start}% 100%`)
+  return `conic-gradient(${stops.join(', ')})`
 }

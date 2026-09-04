@@ -1,14 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-
-type Expense = {
-  id: string
-  description: string
-  amount: number
-  category: string
-  date: string
-}
+import { toLocalDateInputValue, type Expense } from '@/lib/expenses'
 
 const CATEGORIES = [
   'Food', 'Transport', 'Shopping',
@@ -29,12 +22,14 @@ export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [activeFilter, setActiveFilter] = useState('All')
   const [form, setForm] = useState({
     description: '',
     amount: '',
     category: 'Food',
-    date: new Date().toISOString().split('T')[0]
+    date: toLocalDateInputValue()
   })
 
   useEffect(() => {
@@ -43,50 +38,66 @@ export default function ExpensesPage() {
 
   const fetchExpenses = async () => {
     try {
+      setError(null)
       const res = await fetch('/api/expenses')
-      const data = await res.json()
+      const data = await res.json() as { expenses?: Expense[]; error?: string }
+      if (!res.ok) throw new Error(data.error ?? 'Unable to load expenses.')
       setExpenses(data.expenses || [])
-    } catch (err) {
-      console.error(err)
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : 'Unable to load expenses.')
     } finally {
       setLoading(false)
     }
   }
 
   const handleAdd = async () => {
-    if (!form.description || !form.amount) return
+    const amount = Number(form.amount)
+    if (!form.description.trim() || !Number.isFinite(amount) || amount <= 0) {
+      setError('Enter a description and a positive amount.')
+      return
+    }
+
     setSaving(true)
+    setError(null)
     try {
       const res = await fetch('/api/expenses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form)
       })
-      const data = await res.json()
-      if (data.expense) {
-        setExpenses(prev => [data.expense, ...prev])
+      const data = await res.json() as { expense?: Expense; error?: string }
+      if (!res.ok) throw new Error(data.error ?? 'Unable to save the expense.')
+      const expense = data.expense
+      if (expense) {
+        setExpenses(prev => [expense, ...prev])
         setForm({
           description: '',
           amount: '',
           category: 'Food',
-          date: new Date().toISOString().split('T')[0]
+          date: toLocalDateInputValue()
         })
       }
-    } catch (err) {
-      console.error(err)
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : 'Unable to save the expense.')
     } finally {
       setSaving(false)
     }
   }
 
   const handleDelete = async (id: string) => {
+    setDeletingId(id)
+    setError(null)
     try {
-      await fetch(`/api/expenses?id=${id}`, {
+      const response = await fetch(`/api/expenses?id=${encodeURIComponent(id)}`, {
         method: 'DELETE'
       })
+      const data = await response.json() as { error?: string }
+      if (!response.ok) throw new Error(data.error ?? 'Unable to delete the expense.')
       setExpenses(prev => prev.filter(e => e.id !== id))
-    } catch (err) {
-      console.error(err)
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : 'Unable to delete the expense.')
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -117,6 +128,12 @@ export default function ExpensesPage() {
           Track your daily spending
         </p>
       </div>
+
+      {error && (
+        <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          {error}
+        </div>
+      )}
 
       {/* Summary Bar */}
       <div className="grid grid-cols-3 gap-3">
@@ -157,6 +174,8 @@ export default function ExpensesPage() {
         <div className="grid grid-cols-2 gap-3">
           <input
             type="number"
+            min="0.01"
+            step="0.01"
             placeholder="Amount (₹)"
             value={form.amount}
             onChange={e => setForm(p => ({
@@ -255,10 +274,13 @@ export default function ExpensesPage() {
                     .toLocaleString('en-IN')}
                 </span>
                 <button
+                  type="button"
                   onClick={() => handleDelete(expense.id)}
-                  className="text-zinc-600 hover:text-red-400 transition"
+                  disabled={deletingId === expense.id}
+                  className="text-zinc-600 hover:text-red-400 transition disabled:opacity-40"
+                  aria-label={`Delete ${expense.description}`}
                 >
-                  ✕
+                  {deletingId === expense.id ? '…' : '✕'}
                 </button>
               </div>
             </div>

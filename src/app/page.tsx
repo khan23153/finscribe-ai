@@ -33,13 +33,24 @@ export default function LandingPage() {
             )}
           </div>
           <div className="flex items-center gap-4 text-sm font-medium">
-            <Link href="/sign-in" className="hover:text-accent transition-colors">Sign In</Link>
-            <Link
-              href="/sign-up"
-              className="bg-accent hover:bg-accent-dark text-background px-5 py-2.5 rounded-xl transition-colors text-sm font-bold"
-            >
-              Get Started
-            </Link>
+            {isSignedIn ? (
+              <Link
+                href="/dashboard"
+                className="bg-accent hover:bg-accent-dark text-background px-5 py-2.5 rounded-xl transition-colors text-sm font-bold"
+              >
+                Open Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link href="/sign-in" className="hover:text-accent transition-colors">Sign In</Link>
+                <Link
+                  href="/sign-up"
+                  className="bg-accent hover:bg-accent-dark text-background px-5 py-2.5 rounded-xl transition-colors text-sm font-bold"
+                >
+                  Get Started
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -63,10 +74,10 @@ export default function LandingPage() {
 
           <div className="flex flex-col sm:flex-row items-center gap-4 relative">
           <Link
-            href="/sign-up"
+            href={isSignedIn ? "/dashboard" : "/sign-up"}
             className="bg-accent hover:bg-accent-dark text-background px-10 py-4 rounded-2xl font-bold text-base shadow-lg shadow-accent/25 transition-colors w-full sm:w-auto"
           >
-            Start Free
+            {isSignedIn ? "Open Dashboard" : "Start Free"}
           </Link>
           <Link
             href="/dashboard"
@@ -78,18 +89,18 @@ export default function LandingPage() {
           {/* Floating Stat Card 1 */}
           <div className="hidden lg:flex absolute -left-48 top-4 flex-col gap-1 bg-surface/80 backdrop-blur-xl border border-border border-accent/20 p-4 rounded-xl shadow-2xl rotate-[-2deg]">
             <div className="flex items-center gap-2 text-sm text-muted">
-              <span>Savings</span>
-              <span className="text-accent flex items-center">&uarr; 12%</span>
+              <span>Monthly view</span>
+              <span className="text-accent flex items-center">Your data</span>
             </div>
-            <div className="font-mono text-2xl font-bold">₹2.4L saved</div>
+            <div className="font-display text-xl font-bold">Recorded expenses</div>
           </div>
 
           {/* Floating Stat Card 2 */}
           <div className="hidden lg:flex absolute -right-48 -bottom-12 flex-col gap-1 bg-surface/80 backdrop-blur-xl border border-border border-accent/20 p-4 rounded-xl shadow-2xl rotate-[3deg]">
             <div className="flex items-center gap-2 text-sm text-muted">
-              <span>&#129302; AI Precision</span>
+              <span>&#129302; AI research</span>
             </div>
-            <div className="font-display text-2xl font-bold text-accent">94% accuracy</div>
+            <div className="font-display text-xl font-bold text-accent">Grounded sources</div>
           </div>
         </div>
         </div>
@@ -99,20 +110,20 @@ export default function LandingPage() {
       <section className="py-12 border-y border-border relative z-10">
         <div className="max-w-6xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-8 text-center divide-x divide-border">
           <div>
-            <div className="font-mono text-4xl font-black mb-1">10,000+</div>
-            <div className="text-muted text-sm uppercase tracking-wide">Users</div>
+            <div className="font-mono text-3xl font-black mb-1">Manual</div>
+            <div className="text-muted text-sm uppercase tracking-wide">Expense entry</div>
           </div>
           <div>
-            <div className="font-mono text-4xl font-black mb-1">₹50Cr+</div>
-            <div className="text-muted text-sm uppercase tracking-wide">Tracked</div>
+            <div className="font-mono text-3xl font-black mb-1">6 months</div>
+            <div className="text-muted text-sm uppercase tracking-wide">Trend view</div>
           </div>
           <div>
-            <div className="font-mono text-4xl font-black mb-1">99.9%</div>
-            <div className="text-muted text-sm uppercase tracking-wide">Uptime</div>
+            <div className="font-mono text-3xl font-black mb-1">5 steps</div>
+            <div className="text-muted text-sm uppercase tracking-wide">Personal setup</div>
           </div>
           <div>
-            <div className="font-mono text-4xl font-black mb-1">4.9&#9733;</div>
-            <div className="text-muted text-sm uppercase tracking-wide">Rating</div>
+            <div className="font-mono text-3xl font-black mb-1">Source-linked</div>
+            <div className="text-muted text-sm uppercase tracking-wide">Market research</div>
           </div>
         </div>
       </section>
@@ -125,12 +136,12 @@ export default function LandingPage() {
           </h2>
           <div className="grid md:grid-cols-3 gap-8">
             {[
-              { icon: '🧠', title: 'AI Insights', desc: 'Smart analysis that learns your spending habits' },
+              { icon: '🧠', title: 'AI Insights', desc: 'Analysis based only on the financial figures you provide' },
               { icon: '📊', title: 'Visual Reports', desc: 'Beautiful charts that make data easy to read' },
-              { icon: '🔒', title: 'Bank-grade Security', desc: '256-bit encryption on all your data' },
-              { icon: '⚡', title: 'Real-time Sync', desc: 'Transactions updated instantly across devices' },
-              { icon: '📁', title: 'Smart Categories', desc: 'Auto-categorize expenses with 94% accuracy' },
-              { icon: '🎯', title: 'Goal Tracking', desc: 'Set targets and watch your progress visually' },
+              { icon: '🔒', title: 'Account Isolation', desc: 'Authenticated routes and owner-scoped expense records' },
+              { icon: '⚡', title: 'Persistent Expenses', desc: 'Recorded expenses are stored with your signed-in account' },
+              { icon: '📁', title: 'Clear Categories', desc: 'Organize expenses into seven practical categories' },
+              { icon: '🎯', title: 'Goal Tracking', desc: 'Set targets and keep progress saved in this browser' },
             ].map((f, i) => (
               <div key={i} className="bg-surface border border-border rounded-2xl p-8 hover:border-accent/50 hover:shadow-lg hover:shadow-accent/10 hover:border-l-4 hover:border-l-accent transition-all group">
                 <div className="text-4xl mb-6 group-hover:scale-110 transition-transform origin-left">{f.icon}</div>
@@ -150,9 +161,9 @@ export default function LandingPage() {
           </h2>
           <div className="grid md:grid-cols-3 gap-12 text-center">
             {[
-              { step: '01', title: 'Connect Your Account', desc: 'Link your bank or add expenses manually' },
+              { step: '01', title: 'Create Your Account', desc: 'Sign up securely and open your private dashboard' },
               { step: '02', title: 'Take the Financial Quiz', desc: 'Discover your spending personality' },
-              { step: '03', title: 'Get AI Insights', desc: 'Receive personalized recommendations daily' },
+              { step: '03', title: 'Record and Review', desc: 'Add expenses, inspect reports, and request AI analysis' },
             ].map((s, i) => (
               <div key={i} className="flex flex-col items-center relative bg-surface border border-border rounded-2xl p-8 hover:border-accent/30 transition-all shadow-sm hover:shadow-md">
                 <div className="font-mono text-8xl font-black text-accent/20 mb-4">{s.step}</div>
@@ -175,11 +186,7 @@ export default function LandingPage() {
             <span className="font-display font-bold text-lg">FinScribe AI</span>
             <span className="text-muted text-sm">&mdash; Intelligent Financial Ledger</span>
           </div>
-          <div className="flex items-center gap-6 text-sm text-muted">
-            <Link href="#" className="hover:text-accent transition-colors">Privacy</Link>
-            <Link href="#" className="hover:text-accent transition-colors">Terms</Link>
-            <Link href="#" className="hover:text-accent transition-colors">Contact</Link>
-          </div>
+          <p className="text-sm text-muted">Educational tools only; not financial advice.</p>
           <div className="text-sm text-muted/60">
             &copy; {new Date().getFullYear()} FinScribe AI. All rights reserved.
           </div>

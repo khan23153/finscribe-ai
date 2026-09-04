@@ -1,14 +1,14 @@
 import { redirect } from 'next/navigation'
-import { auth } from '@clerk/nextjs/server'
+import { currentUser } from '@clerk/nextjs/server'
 
 export default async function OnboardingPage() {
-  const { userId, sessionClaims } = await auth()
+  const user = await currentUser()
 
-  if (!userId) {
+  if (!user) {
     redirect('/sign-in')
   }
 
-  if (sessionClaims?.publicMetadata?.onboardingComplete) {
+  if (user.publicMetadata.onboardingComplete === true) {
     redirect('/dashboard')
   }
 

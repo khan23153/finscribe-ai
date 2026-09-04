@@ -1,184 +1,168 @@
-"use client";
+'use client'
 
-import { useState } from "react";
-import { ArrowRight, CheckCircle2, ChevronRight, Loader2 } from "lucide-react";
-import { useUser, useSession } from "@clerk/nextjs";
-
-const QUIZ_QUESTIONS = [
-  {
-    id: "goal",
-    question: "What's your primary financial goal?",
-    options: [
-      "Track daily expenses",
-      "Save for a big purchase",
-      "Pay off debt",
-      "Invest for the future",
-    ],
-  },
-  {
-    id: "experience",
-    question: "How would you rate your financial knowledge?",
-    options: ["Beginner", "Intermediate", "Advanced", "Expert"],
-  },
-  {
-    id: "income_type",
-    question: "What is your primary source of income?",
-    options: ["Salary", "Freelance / Business", "Investments", "Other"],
-  },
-  {
-    id: "spending_habit",
-    question: "What's your biggest spending category usually?",
-    options: ["Food & Dining", "Shopping", "Housing & Utilities", "Travel"],
-  },
-  {
-    id: "notification",
-    question: "How often do you want to review your finances?",
-    options: ["Daily", "Weekly", "Monthly", "Rarely"],
-  },
-];
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useUser } from '@clerk/nextjs'
+import { ArrowRight, CheckCircle2, ChevronRight, Loader2 } from 'lucide-react'
+import { quizQuestions, type QuizAnswers } from '@/lib/onboarding'
 
 export default function QuizPage() {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const { user } = useUser();
-  const { session } = useSession();
+  const router = useRouter()
+  const { isLoaded, user } = useUser()
+  const [currentStep, setCurrentStep] = useState(0)
+  const [answers, setAnswers] = useState<Partial<QuizAnswers>>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const currentQuestion = quizQuestions[currentStep]
+  const selectedAnswer = answers[currentQuestion.id]
 
   const handleOptionSelect = (option: string) => {
-    setAnswers((prev) => ({
-      ...prev,
-      [QUIZ_QUESTIONS[currentStep].id]: option,
-    }));
-  };
-
-  const handleNext = async () => {
-    if (currentStep < QUIZ_QUESTIONS.length - 1) {
-      setCurrentStep((prev) => prev + 1);
-    } else {
-      await submitQuiz();
-    }
-  };
-
-  const submitQuiz = async () => {
-    setIsSubmitting(true);
-    setError(null);
-    try {
-      const response = await fetch("/api/onboarding", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ answers }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to save onboarding data");
-      }
-
-      // Call API to set onboardingComplete in Clerk
-      // AND get the bypass cookie set
-      await fetch('/api/onboarding/complete', {
-        method: 'POST',
-        credentials: 'include',
-      })
-    } catch (e) {
-      console.error('Completion error:', e);
-      setIsSubmitting(false);
-      setError("Failed to save preferences. Please try again.");
-      return;
-    }
-
-    // Small delay to ensure cookie is set
-    await new Promise(resolve => setTimeout(resolve, 500))
-
-    // Hard redirect — bypass cookie will let us through
-    window.location.href = '/dashboard'
-  };
-
-  if (isSubmitting) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 text-zinc-100 p-6">
-        <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
-        <h2 className="text-2xl font-bold mb-2">Optimizing your account...</h2>
-        <p className="text-zinc-400 text-center max-w-md">
-          We are setting up your smart dashboard based on your preferences.
-        </p>
-      </div>
-    );
+    setAnswers((previous) => ({
+      ...previous,
+      [currentQuestion.id]: option,
+    }))
   }
 
-  const currentQuestion = QUIZ_QUESTIONS[currentStep];
-  const hasAnsweredCurrent = !!answers[currentQuestion.id];
+  const submitQuiz = async () => {
+    setIsSubmitting(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/onboarding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers }),
+      })
+      const data: { error?: string } = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error ?? 'Failed to save onboarding data.')
+      }
+
+      // The server updates Clerk metadata, so refresh the user and session token
+      // before navigating to routes that read the new value.
+      await user?.reload()
+      router.replace('/onboarding/result')
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'Failed to save preferences. Please try again.',
+      )
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleNext = () => {
+    if (!selectedAnswer || isSubmitting) return
+
+    if (currentStep < quizQuestions.length - 1) {
+      setCurrentStep((previous) => previous + 1)
+      return
+    }
+
+    void submitQuiz()
+  }
+
+  if (!isLoaded || !user || isSubmitting) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 text-zinc-100 p-6">
+        <Loader2 className="w-12 h-12 text-accent animate-spin mb-4" />
+        <h2 className="text-2xl font-bold mb-2">
+          {isSubmitting ? 'Optimizing your account...' : 'Loading your account...'}
+        </h2>
+        <p className="text-zinc-400 text-center max-w-md">
+          {isSubmitting
+            ? 'We are setting up your dashboard based on your preferences.'
+            : 'This will only take a moment.'}
+        </p>
+      </div>
+    )
+  }
+
+  const progress = ((currentStep + 1) / quizQuestions.length) * 100
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 text-zinc-100 p-6">
       <div className="w-full max-w-2xl">
-        {/* Progress bar */}
         <div className="mb-8">
           <div className="flex justify-between text-sm font-medium text-zinc-400 mb-2">
-            <span>Question {currentStep + 1} of {QUIZ_QUESTIONS.length}</span>
-            <span>{Math.round(((currentStep + 1) / QUIZ_QUESTIONS.length) * 100)}%</span>
+            <span>Question {currentStep + 1} of {quizQuestions.length}</span>
+            <span>{Math.round(progress)}%</span>
           </div>
           <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
             <div
-              className="bg-blue-500 h-full transition-all duration-300 ease-in-out"
-              style={{ width: `${((currentStep + 1) / QUIZ_QUESTIONS.length) * 100}%` }}
+              className="bg-accent h-full transition-all duration-300 ease-in-out"
+              style={{ width: `${progress}%` }}
             />
           </div>
         </div>
 
-        {/* Question */}
         <h1 className="text-3xl md:text-4xl font-bold mb-8 tracking-tight">
           {currentQuestion.question}
         </h1>
 
-        {/* Options */}
         <div className="grid gap-4 mb-8">
           {currentQuestion.options.map((option) => {
-            const isSelected = answers[currentQuestion.id] === option;
+            const isSelected = selectedAnswer === option
+
             return (
               <button
                 key={option}
+                type="button"
                 onClick={() => handleOptionSelect(option)}
                 className={`flex items-center justify-between p-6 rounded-xl border-2 text-left transition-all duration-200 ${
                   isSelected
-                    ? "border-blue-500 bg-blue-500/10"
-                    : "border-zinc-800 bg-zinc-900 hover:border-zinc-700 hover:bg-zinc-800"
+                    ? 'border-accent bg-accent/10'
+                    : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700 hover:bg-zinc-800'
                 }`}
               >
                 <span className="text-lg font-medium">{option}</span>
-                {isSelected && <CheckCircle2 className="w-6 h-6 text-blue-500" />}
+                {isSelected && <CheckCircle2 className="w-6 h-6 text-accent" />}
               </button>
-            );
+            )
           })}
         </div>
 
-        {/* Actions */}
-        <div className="flex flex-col items-end gap-4">
-          {error && (
-            <div className="text-red-500 bg-red-500/10 px-4 py-2 rounded-lg font-medium">
-              {error}
-            </div>
-          )}
+        <div className="flex items-center justify-between gap-4">
           <button
-            onClick={handleNext}
-            disabled={!hasAnsweredCurrent}
-            className={`flex items-center space-x-2 px-8 py-4 rounded-xl font-semibold transition-all duration-200 ${
-              hasAnsweredCurrent
-                ? "bg-zinc-100 text-zinc-900 hover:bg-white hover:scale-105"
-                : "bg-zinc-800 text-zinc-500 cursor-not-allowed"
-            }`}
+            type="button"
+            onClick={() => setCurrentStep((previous) => Math.max(0, previous - 1))}
+            disabled={currentStep === 0}
+            className="px-5 py-4 rounded-xl font-semibold text-zinc-400 hover:text-white disabled:opacity-0 disabled:pointer-events-none"
           >
-            <span>{currentStep === QUIZ_QUESTIONS.length - 1 ? "Complete Setup" : "Continue"}</span>
-            {currentStep === QUIZ_QUESTIONS.length - 1 ? (
-              <ArrowRight className="w-5 h-5" />
-            ) : (
-              <ChevronRight className="w-5 h-5" />
-            )}
+            Back
           </button>
+
+          <div className="flex flex-col items-end gap-3">
+            {error && (
+              <p role="alert" className="text-red-400 bg-red-500/10 px-4 py-2 rounded-lg font-medium">
+                {error}
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={handleNext}
+              disabled={!selectedAnswer || isSubmitting}
+              className={`flex items-center gap-2 px-8 py-4 rounded-xl font-semibold transition-all duration-200 ${
+                selectedAnswer
+                  ? 'bg-zinc-100 text-zinc-900 hover:bg-white hover:scale-105'
+                  : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
+              }`}
+            >
+              <span>
+                {currentStep === quizQuestions.length - 1 ? 'Complete Setup' : 'Continue'}
+              </span>
+              {currentStep === quizQuestions.length - 1 ? (
+                <ArrowRight className="w-5 h-5" />
+              ) : (
+                <ChevronRight className="w-5 h-5" />
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>
-  );
+  )
 }

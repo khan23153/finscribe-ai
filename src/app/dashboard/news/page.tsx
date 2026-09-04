@@ -2,56 +2,66 @@
 
 import { useState, useEffect } from 'react'
 import { RefreshCw, Newspaper } from 'lucide-react'
+import { z } from 'zod'
 
-type NewsItem = {
-  title: string
-  summary: string
-  category: 'Markets' | 'Economy' | 'Crypto' | 'Banking' | 'RBI'
-  sentiment: 'positive' | 'negative' | 'neutral'
-  time: string
-}
+const newsItemSchema = z.object({
+  title: z.string().min(1),
+  summary: z.string().min(1),
+  category: z.enum(['Markets', 'Economy', 'Crypto', 'Banking', 'RBI']),
+  sentiment: z.enum(['positive', 'negative', 'neutral']),
+  publishedAt: z.string().min(1),
+})
+
+const newsSchema = z.array(newsItemSchema).min(1).max(8)
+type NewsItem = z.infer<typeof newsItemSchema>
+type NewsCategory = 'All' | NewsItem['category']
 
 export default function FinanceNewsPage() {
   const [news, setNews] = useState<NewsItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState("All")
+  const [activeTab, setActiveTab] = useState<NewsCategory>('All')
+  const [error, setError] = useState<string | null>(null)
+  const [sources, setSources] = useState<Array<{ title: string; url: string }>>([])
 
-  const tabs = ["All", "Markets", "Economy", "Crypto", "Banking", "RBI"]
+  const tabs: NewsCategory[] = ['All', 'Markets', 'Economy', 'Crypto', 'Banking', 'RBI']
 
   const fetchNews = async () => {
     setIsLoading(true)
     setNews([])
+    setSources([])
+    setError(null)
 
     try {
       const response = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          systemPrompt: 'You are a financial news curator for Indian markets. Return ONLY a raw JSON array. No markdown, no code blocks, no explanation. Just the JSON array starting with [ and ending ]',
+          mode: 'news',
           messages: [
             {
               role: "user",
-              content: 'Give me 8 realistic Indian financial market news headlines for today April 2026. Return as JSON array exactly: [{"title":"...","summary":"2 sentence summary of news","category":"Markets","sentiment":"positive","time":"2 hours ago"}]. Categories must be one of: Markets, Economy, Crypto, Banking, RBI. Sentiment must be one of: positive, negative, neutral'
+              content: 'Find eight recent, verifiable Indian financial news items. Use ISO 8601 dates in publishedAt and the required categories and sentiment values.'
             }
           ]
         })
       })
 
-      const data = await response.json()
-      const rawText = data.reply
-
-      const clean = rawText
-        .replace(/```json/g, '')
-        .replace(/```/g, '')
-        .trim()
-
-      const parsed = JSON.parse(clean)
-
-      if (Array.isArray(parsed)) {
-        setNews(parsed)
+      const data = await response.json() as {
+        reply?: string
+        error?: string
+        sources?: Array<{ title: string; url: string }>
       }
-    } catch (error) {
-      console.error("Failed to fetch news:", error)
+      if (!response.ok || !data.reply) {
+        throw new Error(data.error ?? 'Unable to load finance news.')
+      }
+
+      const parsed = newsSchema.safeParse(JSON.parse(data.reply))
+      if (!parsed.success) throw new Error('The news service returned an invalid response.')
+
+      setNews(parsed.data)
+      setSources(data.sources ?? [])
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : 'Unable to load finance news.')
     } finally {
       setIsLoading(false)
     }
@@ -61,7 +71,7 @@ export default function FinanceNewsPage() {
     fetchNews()
   }, [])
 
-  const filteredNews = activeTab === "All" ? news : news.filter(item => item.category === activeTab)
+  const filteredNews = activeTab === 'All' ? news : news.filter(item => item.category === activeTab)
 
   return (
     <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-8">
@@ -71,7 +81,7 @@ export default function FinanceNewsPage() {
             <Newspaper className="w-8 h-8 text-accent" />
             Finance News
           </h1>
-          <p className="text-muted mt-2">Live Indian market updates</p>
+          <p className="text-muted mt-2">Recent Indian market updates grounded with web search</p>
         </div>
         <button
           onClick={fetchNews}
@@ -82,6 +92,12 @@ export default function FinanceNewsPage() {
           Refresh
         </button>
       </div>
+
+      {error && (
+        <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          {error}
+        </div>
+      )}
 
       <div className="flex overflow-x-auto space-x-2 pb-2" style={{ scrollbarWidth: "none" }}>
         {tabs.map(tab => (
@@ -104,7 +120,7 @@ export default function FinanceNewsPage() {
           ? Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="animate-pulse bg-zinc-800 rounded-xl h-32 w-full" />
             ))
-          : filteredNews.map((item, i) => {
+          : filteredNews.map((item) => {
               const categoryColors = {
                 Markets: "bg-blue-500/20 text-blue-400",
                 Economy: "bg-green-500/20 text-green-400",
@@ -120,7 +136,7 @@ export default function FinanceNewsPage() {
 
               return (
                 <div
-                  key={i}
+                  key={`${item.title}-${item.publishedAt}`}
                   className="bg-surface border border-zinc-800 rounded-xl p-4 hover:border-zinc-600 transition flex flex-col"
                 >
                   <div className="flex justify-between items-start mb-2">
@@ -130,7 +146,9 @@ export default function FinanceNewsPage() {
                       </span>
                       <span className={`w-2 h-2 rounded-full ${sentimentColors[item.sentiment] || "bg-zinc-400"}`} />
                     </div>
-                    <span className="text-xs text-zinc-400">{item.time}</span>
+                    <time className="text-xs text-zinc-400" dateTime={item.publishedAt}>
+                      {formatPublishedDate(item.publishedAt)}
+                    </time>
                   </div>
                   <h3 className="font-semibold text-sm text-white mb-1 flex-1">{item.title}</h3>
                   <p className="text-xs text-zinc-400 mt-1 leading-relaxed">{item.summary}</p>
@@ -144,6 +162,36 @@ export default function FinanceNewsPage() {
           <p className="text-muted">No news found for this category.</p>
         </div>
       )}
+
+      {sources.length > 0 && (
+        <section className="bg-surface border border-border rounded-xl p-5">
+          <h2 className="font-semibold mb-3">Sources used for this briefing</h2>
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {sources.map((source) => (
+              <li key={source.url}>
+                <a
+                  href={source.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm text-accent hover:underline break-all"
+                >
+                  {source.title}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   )
+}
+
+function formatPublishedDate(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  return date.toLocaleString('en-IN', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  })
 }

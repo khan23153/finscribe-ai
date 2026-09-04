@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FinScribe AI
 
-## Getting Started
+FinScribe AI is a Next.js personal-finance dashboard for recording expenses, reviewing reports, calculating loan EMIs, and requesting educational AI analysis. It is designed for Indian currency and uses Clerk for authentication, PostgreSQL through Prisma for expense records, and the Gemini API for optional AI features.
 
-First, run the development server:
+## What works
+
+- Authenticated onboarding and dashboard routes
+- Per-user expense creation, listing, filtering, and deletion
+- Current-month summaries, category breakdowns, and six-month trends
+- Period-based expense reports and AI-assisted report commentary
+- EMI calculation with a full amortization schedule
+- Google Search-grounded finance news and stock research when Gemini is configured
+- Browser-persisted goals, ledger entries, theme, and preferences
+
+Goals, contact-ledger data, and settings are currently stored only in the current browser. Bank connections, portfolio syncing, notification delivery, and personalized investment advice are not implemented.
+
+## Requirements
+
+- Node.js 20.9 or newer
+- npm
+- PostgreSQL
+- A Clerk application
+- A Gemini API key for AI, news, and stock-research features (optional)
+
+## Local setup
+
+1. Install the exact locked dependencies:
+
+   ```bash
+   npm ci
+   ```
+
+2. Copy the environment template and replace its placeholders:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+3. Apply the database migrations:
+
+   ```bash
+   npm run db:migrate
+   ```
+
+4. Start the development server:
+
+   ```bash
+   npm run dev
+   ```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+### Existing legacy database
+
+The migration history now includes an idempotent baseline followed by a schema-reconciliation migration. If an existing database already records one of the `202604...` migrations in its `_prisma_migrations` table, mark only the new baseline as applied before deployment, then apply pending migrations:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npx prisma migrate resolve --applied 00000000000000_baseline
+npm run db:migrate
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Back up production data before applying any schema migration.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Validation
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Run the repository checks before committing:
 
-## Learn More
+```bash
+npm run check
+npm run db:validate
+npm run build
+```
 
-To learn more about Next.js, take a look at the following resources:
+`npm run build` requires valid Clerk values and `DATABASE_URL`. `GEMINI_API_KEY` is not required to compile, but AI endpoints return `503` until it is configured.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Main scripts
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the Next.js development server |
+| `npm run check` | Run ESLint and TypeScript validation |
+| `npm run build` | Generate Prisma Client and create a production build |
+| `npm run db:validate` | Validate the Prisma schema |
+| `npm run db:migrate` | Apply pending production migrations |
+| `npm start` | Serve a completed production build |
 
-## Deploy on Vercel
+## Security model
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Dashboard routes require Clerk authentication, onboarding completion is stored in server-managed Clerk metadata, and expense mutations are scoped to the authenticated owner. AI prompts are selected on the server; clients cannot replace system instructions. Never commit `.env` files or credentials.

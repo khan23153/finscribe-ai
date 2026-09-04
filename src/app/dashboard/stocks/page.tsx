@@ -18,10 +18,11 @@ const initialWatchlist: Stock[] = [
 ]
 
 export default function StocksPage() {
-  const [watchlist, setWatchlist] = useState<Stock[]>(initialWatchlist)
+  const watchlist = initialWatchlist
 
   const [stockToAnalyze, setStockToAnalyze] = useState('')
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null)
+  const [sources, setSources] = useState<Array<{ title: string; url: string }>>([])
   const [isLoading, setIsLoading] = useState(false)
 
   const analyzeStock = async (e: React.FormEvent) => {
@@ -30,24 +31,36 @@ export default function StocksPage() {
 
     setIsLoading(true)
     setAiAnalysis(null)
+    setSources([])
 
     try {
-      const systemPrompt = "You are a SEBI-registered financial advisor AI for Indian stock markets. English only. Always include risk disclaimer."
-      const userMessage = `Analyze ${stockToAnalyze} for Indian retail investor. Short-term and long-term outlook. 3 key points.`
+      const userMessage = `Research ${stockToAnalyze.trim()} for an Indian retail investor. Summarize current public information, distinguish short-term uncertainty from long-term factors, and give three key points.`
 
       const response = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          systemPrompt,
+          mode: 'stocks',
           messages: [{ role: 'user', content: userMessage }]
         })
       })
 
-      const data = await response.json()
+      const data = await response.json() as {
+        reply?: string
+        error?: string
+        sources?: Array<{ title: string; url: string }>
+      }
+      if (!response.ok || !data.reply) {
+        throw new Error(data.error ?? 'Failed to get AI analysis.')
+      }
       setAiAnalysis(data.reply)
-    } catch (error) {
-      setAiAnalysis("Failed to get AI analysis. Please try again.")
+      setSources(data.sources ?? [])
+    } catch (caughtError) {
+      setAiAnalysis(
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'Failed to get AI analysis. Please try again.',
+      )
     } finally {
       setIsLoading(false)
     }
@@ -55,7 +68,17 @@ export default function StocksPage() {
 
   return (
     <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-8">
-      {/* SECTION A — Market Overview */}
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="font-display text-3xl font-bold">Stocks</h1>
+          <p className="text-zinc-400 text-sm mt-1">Grounded AI research plus illustrative interface data.</p>
+        </div>
+        <span className="text-xs border border-amber-500/30 bg-amber-500/10 text-amber-300 px-3 py-1.5 rounded-full">
+          Prices below are samples
+        </span>
+      </div>
+
+      {/* SECTION A — Illustrative Market Overview */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { name: "NIFTY 50", value: 22147.90, change: +0.34 },
@@ -80,7 +103,7 @@ export default function StocksPage() {
           {/* SECTION B — Watchlist */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
             <div className="p-5 flex justify-between items-center bg-zinc-950 border-b border-zinc-800">
-              <h3 className="font-bold text-zinc-100">Market Watchlist</h3>
+              <h3 className="font-bold text-zinc-100">Sample watchlist</h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm text-zinc-300">
@@ -130,25 +153,12 @@ export default function StocksPage() {
                     <th className="px-6 py-4 font-medium">P&L%</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-800">
-                  {[].map((pos: { sym: string, qty: number, buy: number, ltp: number }) => {
-                    const pl = (pos.ltp - pos.buy) * pos.qty
-                    const plpct = ((pos.ltp - pos.buy) / pos.buy) * 100
-                    return (
-                      <tr key={pos.sym} className="hover:bg-zinc-800/50 transition-colors font-mono">
-                        <td className="px-6 py-4 whitespace-nowrap text-left font-bold text-zinc-100">{pos.sym}</td>
-                        <td className="px-6 py-4">{pos.qty}</td>
-                        <td className="px-6 py-4">₹{pos.buy.toFixed(2)}</td>
-                        <td className="px-6 py-4">₹{pos.ltp.toFixed(2)}</td>
-                        <td className={`px-6 py-4 font-bold ${pl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                          {pl >= 0 ? '+' : ''}₹{pl.toFixed(2)}
-                        </td>
-                        <td className={`px-6 py-4 font-bold ${plpct >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                          {plpct >= 0 ? '+' : ''}{plpct.toFixed(2)}%
-                        </td>
-                      </tr>
-                    )
-                  })}
+                <tbody>
+                  <tr>
+                    <td colSpan={6} className="px-6 py-10 text-center text-zinc-500">
+                      Portfolio positions are not connected yet.
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -203,6 +213,25 @@ export default function StocksPage() {
               <div className="whitespace-pre-wrap text-sm text-zinc-300 leading-relaxed border-t border-zinc-800 pt-3">
                 {aiAnalysis}
               </div>
+              {sources.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-zinc-800">
+                  <h5 className="text-xs font-bold uppercase tracking-wide text-zinc-400 mb-2">Sources</h5>
+                  <ul className="space-y-1">
+                    {sources.map((source) => (
+                      <li key={source.url}>
+                        <a
+                          href={source.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-green-400 hover:underline break-all"
+                        >
+                          {source.title}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
         </div>

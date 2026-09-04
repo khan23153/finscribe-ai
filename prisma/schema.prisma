@@ -28,6 +28,8 @@ model Expense {
   date        DateTime @default(now())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([userId, date])
 }
 
 model LedgerEntity {
@@ -40,7 +42,7 @@ model LedgerEntity {
   balance            Float               @default(0)
   type               LedgerEntityType
   openingBalance     Float               @default(0)
-  currency           String              @default("USD")
+  currency           String              @default("INR")
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   debitTransactions  LedgerTransaction[] @relation("DebitEntity")
@@ -58,7 +60,7 @@ model LedgerTransaction {
   creditEntityId  String
   creditEntity    LedgerEntity @relation("CreditEntity", fields: [creditEntityId], references: [id])
   amount          Float
-  currency        String       @default("USD")
+  currency        String       @default("INR")
   description     String?
   transactionDate DateTime
   referenceNo     String?

@@ -65,22 +65,28 @@ export default function EMICalculatorPage() {
     setAiAnalysis(null)
 
     try {
-      const systemPrompt = "You are a financial advisor. English only. Give practical loan advice. Add risk disclaimer."
-      const userMessage = `Loan: ₹${amount.toLocaleString('en-IN')}, EMI: ₹${emi.toFixed(0).toLocaleString()}, tenure: ${tenure} months, rate: ${rate}%. Is this affordable? Give 3 tips.`
+      const userMessage = `Loan: ₹${amount.toLocaleString('en-IN')}, EMI: ₹${Math.round(emi).toLocaleString('en-IN')}, tenure: ${tenure} months, rate: ${rate}%. Is this affordable? Give 3 tips.`
 
       const response = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          systemPrompt,
+          mode: 'emi',
           messages: [{ role: 'user', content: userMessage }]
         })
       })
 
-      const data = await response.json()
+      const data = await response.json() as { reply?: string; error?: string }
+      if (!response.ok || !data.reply) {
+        throw new Error(data.error ?? 'Failed to get AI analysis.')
+      }
       setAiAnalysis(data.reply)
-    } catch (error) {
-      setAiAnalysis("Failed to get AI analysis. Please try again.")
+    } catch (caughtError) {
+      setAiAnalysis(
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'Failed to get AI analysis. Please try again.',
+      )
     } finally {
       setIsLoading(false)
     }
@@ -161,7 +167,7 @@ export default function EMICalculatorPage() {
           <div className="text-center mb-8">
             <p className="text-zinc-400 mb-2">Your Monthly EMI</p>
             <h3 className="text-4xl text-green-500 font-mono font-bold">
-              ₹{emi.toFixed(0).toLocaleString()}
+              ₹{Math.round(emi).toLocaleString('en-IN')}
             </h3>
           </div>
 
@@ -172,11 +178,11 @@ export default function EMICalculatorPage() {
             </div>
             <div className="bg-zinc-950 p-4 rounded-lg border border-zinc-800">
               <p className="text-xs text-zinc-500 mb-1">Total Interest ({interestPercent.toFixed(1)}%)</p>
-              <p className="text-lg font-mono text-red-400">₹{totalInterest.toFixed(0).toLocaleString()}</p>
+              <p className="text-lg font-mono text-red-400">₹{Math.round(totalInterest).toLocaleString('en-IN')}</p>
             </div>
             <div className="col-span-2 bg-zinc-950 p-4 rounded-lg border border-zinc-800 flex justify-between items-center">
               <p className="text-sm text-zinc-400">Total Payable</p>
-              <p className="text-xl font-mono font-bold text-zinc-100">₹{totalPayable.toFixed(0).toLocaleString()}</p>
+              <p className="text-xl font-mono font-bold text-zinc-100">₹{Math.round(totalPayable).toLocaleString('en-IN')}</p>
             </div>
           </div>
 
@@ -204,7 +210,7 @@ export default function EMICalculatorPage() {
       {aiAnalysis && (
         <div className="bg-zinc-900 border border-green-500/30 p-6 rounded-xl text-zinc-100 animate-in slide-in-from-bottom-4">
           <h3 className="text-lg font-bold text-green-400 flex items-center gap-2 mb-4 border-b border-zinc-800 pb-3">
-            <span>🧠</span> AI Loan Advisor Analysis
+            <span>🧠</span> AI Loan Analysis
           </h3>
           <div className="whitespace-pre-wrap text-sm text-zinc-300 leading-relaxed">
             {aiAnalysis}
@@ -237,9 +243,9 @@ export default function EMICalculatorPage() {
               {(showAllRows ? table : table.slice(0, 12)).map(row => (
                 <tr key={row.month} className="hover:bg-zinc-800/50 transition-colors font-mono">
                   <td className="px-6 py-3 whitespace-nowrap text-left text-zinc-400">{row.month}</td>
-                  <td className="px-6 py-3">₹{row.principal.toFixed(0).toLocaleString()}</td>
-                  <td className="px-6 py-3 text-red-400">₹{row.interest.toFixed(0).toLocaleString()}</td>
-                  <td className="px-6 py-3 font-medium">₹{row.balance.toFixed(0).toLocaleString()}</td>
+                  <td className="px-6 py-3">₹{Math.round(row.principal).toLocaleString('en-IN')}</td>
+                  <td className="px-6 py-3 text-red-400">₹{Math.round(row.interest).toLocaleString('en-IN')}</td>
+                  <td className="px-6 py-3 font-medium">₹{Math.round(row.balance).toLocaleString('en-IN')}</td>
                 </tr>
               ))}
             </tbody>

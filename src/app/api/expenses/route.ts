@@ -1,101 +1,137 @@
-import { auth, currentUser } from '@clerk/nextjs/server'
-import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from "@prisma/client"
+import { auth } from '@clerk/nextjs/server'
+import { NextResponse } from 'next/server'
+import { z } from 'zod'
+import { prisma } from '@/lib/prisma'
 
-const prisma = new PrismaClient()
+const categories = [
+  'Food',
+  'Transport',
+  'Shopping',
+  'Bills',
+  'Entertainment',
+  'Health',
+  'Other',
+] as const
+
+const dateSchema = z.string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine((value) => {
+    const date = new Date(`${value}T00:00:00.000Z`)
+    return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
+  })
+
+const createExpenseSchema = z.object({
+  amount: z.coerce.number().finite().positive().max(100_000_000),
+  description: z.string().trim().min(1).max(160),
+  category: z.enum(categories),
+  date: dateSchema.optional(),
+}).strict()
+
+async function getAuthenticatedUser() {
+  const { isAuthenticated, userId } = await auth()
+  if (!isAuthenticated || !userId) return null
+
+  return prisma.user.upsert({
+    where: { clerkId: userId },
+    update: {},
+    create: { clerkId: userId },
+  })
+}
 
 export async function GET() {
   try {
-    const { userId } = await auth()
-    if (!userId) return NextResponse.json({ expenses: [] })
-
-    const user = await prisma.user.upsert({
-      where: { clerkId: userId },
-      update: {},
-      create: { clerkId: userId },
-    })
+    const user = await getAuthenticatedUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
     const expenses = await prisma.expense.findMany({
       where: { userId: user.id },
-      orderBy: { date: 'desc' }
-    })
-    return NextResponse.json({ expenses })
-  } catch (error) {
-    console.error('GET expenses error:', error)
-    return NextResponse.json({ expenses: [] })
-  }
-}
-
-export async function POST(req: NextRequest) {
-  try {
-    const { userId } = await auth()
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Unauthorized' }, { status: 401 }
-      )
-    }
-
-    // Get Clerk user details
-    const clerkUser = await currentUser()
-
-    // Upsert user — create if not exists
-    const user = await prisma.user.upsert({
-      where: { clerkId: userId },
-      update: {},
-      create: {
-        clerkId: userId,
-        email: clerkUser?.emailAddresses?.[0]
-          ?.emailAddress ?? null,
-      },
+      orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
     })
 
-    const body = await req.json()
-    const expense = await prisma.expense.create({
-      data: {
-        userId: user.id,
-        amount: Number(body.amount) || 0,
-        description: String(body.description || ''),
-        category: String(body.category || 'Other'),
-        date: body.date
-          ? new Date(body.date) : new Date(),
-      }
-    })
-
-    return NextResponse.json({ expense })
-  } catch (error) {
-    console.error('POST expense error:',
-      error instanceof Error ? error.message : error)
     return NextResponse.json(
-      { error: error instanceof Error
-          ? error.message : 'Failed' },
-      { status: 500 }
+      { expenses },
+      { headers: { 'Cache-Control': 'no-store' } },
+    )
+  } catch (error) {
+    console.error('GET expenses failed', error)
+    return NextResponse.json(
+      { error: 'Unable to load expenses.' },
+      { status: 500 },
     )
   }
 }
 
-export async function DELETE(req: NextRequest) {
+export async function POST(request: Request) {
   try {
-    const { userId } = await auth()
-    if (!userId) {
+    const user = await getAuthenticatedUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    let body: unknown
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json({ error: 'Request body must be valid JSON.' }, { status: 400 })
+    }
+    const parsed = createExpenseSchema.safeParse(body)
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Unauthorized' }, { status: 401 }
+        { error: 'Enter a valid description, positive amount, category, and date.' },
+        { status: 400 },
       )
     }
 
-    const { searchParams } = new URL(req.url)
-    const id = searchParams.get('id')
-    if (!id) {
-      return NextResponse.json(
-        { error: 'ID required' }, { status: 400 }
-      )
+    const expense = await prisma.expense.create({
+      data: {
+        userId: user.id,
+        amount: parsed.data.amount,
+        description: parsed.data.description,
+        category: parsed.data.category,
+        date: parsed.data.date
+          ? new Date(`${parsed.data.date}T00:00:00.000Z`)
+          : new Date(),
+      },
+    })
+
+    return NextResponse.json({ expense }, { status: 201 })
+  } catch (error) {
+    console.error('POST expense failed', error)
+    return NextResponse.json(
+      { error: 'Unable to save the expense.' },
+      { status: 500 },
+    )
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const user = await getAuthenticatedUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    await prisma.expense.delete({ where: { id } })
+    const id = new URL(request.url).searchParams.get('id')
+    if (!id || id.length > 64) {
+      return NextResponse.json({ error: 'Expense ID is required.' }, { status: 400 })
+    }
+
+    const result = await prisma.expense.deleteMany({
+      where: { id, userId: user.id },
+    })
+
+    if (result.count === 0) {
+      return NextResponse.json({ error: 'Expense not found.' }, { status: 404 })
+    }
+
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('DELETE expense error:', error)
+    console.error('DELETE expense failed', error)
     return NextResponse.json(
-      { error: 'Failed to delete' }, { status: 500 }
+      { error: 'Unable to delete the expense.' },
+      { status: 500 },
     )
   }
 }
