@@ -1,5 +1,11 @@
 # FinScribe AI
 
+## Android APK
+
+The repository now includes an Android 8.0+ launcher for the online service, pinned Gradle build tooling, public install metadata, and a static offline/retry screen. Build/signing instructions are in [docs/android/setup.md](docs/android/setup.md). The **Android APK** GitHub Actions workflow accepts a target HTTPS origin and uploads the debug APK plus package/certificate evidence.
+
+An APK build does not deploy the web app. Full-screen operation requires the target site's Digital Asset Links to match the delivered APK's actual signing certificate. Android runtime and deployment verification are recorded separately in `docs/verification/finscribe-android.md`.
+
 FinScribe AI is a Next.js personal-finance dashboard for recording expenses, reviewing reports, calculating loan EMIs, and requesting educational AI analysis. It is designed for Indian currency and uses Clerk for authentication, PostgreSQL through Prisma for expense records, and the Gemini API for optional AI features.
 
 ## What works

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#28634B">
+  <title>FinScribe — Offline</title>
+  <style>
+    :root{color-scheme:light dark;--canvas:#F6F5F1;--text:#202824;--muted:#5F6B64;--action:#28634B}
+    *{box-sizing:border-box}body{margin:0;min-height:100svh;background:var(--canvas);color:var(--text);font:16px/1.6 system-ui,sans-serif;display:grid;place-items:center;padding:24px}
+    main{max-width:380px;width:100%}.mark{width:56px;height:56px;margin-bottom:40px}h1{font-size:30px;line-height:1.2;letter-spacing:-.7px;margin:0 0 16px}p{color:var(--muted);margin:0 0 28px}button{min-height:48px;padding:12px 24px;border:0;border-radius:12px;background:var(--action);color:#fff;font:600 16px system-ui;cursor:pointer}button:focus-visible{outline:3px solid var(--action);outline-offset:4px}.name{font-size:13px;font-weight:600;letter-spacing:.4px;margin-top:48px}
+    @media(prefers-color-scheme:dark){:root{--canvas:#151B18;--text:#EEF2EF;--muted:#A5B2A9;--action:#28634B}}
+  </style>
+</head>
+<body>
+  <main>
+    <img class="mark" src="/icon.svg" alt="" width="56" height="56">
+    <h1>You’re offline</h1>
+    <p>Connect to the internet to open FinScribe and load your finances.</p>
+    <button type="button" onclick="window.location.reload()">Try again</button>
+    <p class="name">FinScribe</p>
+  </main>
+</body>
+</html>

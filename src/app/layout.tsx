@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
+import InstallServiceWorker from '@/components/InstallServiceWorker';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://finscribe-ai.vercel.app'),
@@ -28,6 +29,7 @@ export default function RootLayout({
           <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         </head>
         <body className="bg-background text-foreground font-body min-h-screen antialiased">
+          <InstallServiceWorker />
           {children}
         </body>
       </html>
