@@ -1,6 +1,6 @@
 # FinScribe Android app and interface redesign
 
-Status: proposed written specification, awaiting user review.
+Status: approved by the user on 2026-10-04; implementation-plan review and execution selection are pending.
 
 ## Intent and agreed direction
 
@@ -125,11 +125,10 @@ Test both themes, keyboard navigation, screen-reader labels, enlarged text, redu
 
 ## Review checkpoints
 
-The user has approved the general direction. This written specification still needs review under the brainstorming workflow. After its approval, write the implementation plan and let the user select execution. Product implementation has not begun at the time of this specification.
+The user approved the general direction and then approved this written specification on 2026-10-04. The implementation plans now require review and execution selection under the planning workflow. Product implementation has not begun.
 
 ## Primary technical references
 
 - https://developer.android.com/develop/ui/views/layout/webapps/trusted-web-activities
 - https://developer.android.com/develop/ui/views/layout/webapps/guide-trusted-web-activities-version2
 - https://github.com/GoogleChrome/android-browser-helper
-
