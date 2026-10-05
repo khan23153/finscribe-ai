@@ -46,3 +46,11 @@ next-env.d.ts
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+/test-results/
+/playwright-report/
+/android/.gradle/
+/android/local.properties
+/android/**/build/
+*.jks
+*.keystore

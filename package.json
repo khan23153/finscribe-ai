@@ -14,7 +14,9 @@
     "check": "npm run lint && npm run typecheck",
     "db:validate": "prisma validate",
     "db:migrate": "prisma migrate deploy",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "test": "vitest run",
+    "test:ui": "playwright test"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.0.7",
@@ -27,6 +29,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@playwright/test": "1.56.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -36,6 +39,7 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "prisma": "^5.22.0",
     "tailwindcss": "^4",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "3.2.4"
   }
 }
