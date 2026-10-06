@@ -1,6 +1,6 @@
 # FinScribe AI
 
-FinScribe AI is a Next.js personal-finance dashboard for recording expenses, reviewing reports, calculating loan EMIs, and requesting educational AI analysis. It is designed for Indian currency and uses Clerk for authentication, PostgreSQL through Prisma for expense records, and the Gemini API for optional AI features.
+FinScribe AI is a Next.js personal-finance app for recording expenses, reviewing reports, calculating loan EMIs, and requesting educational AI analysis. It is designed for Indian currency and uses Clerk for authentication, PostgreSQL through Prisma for expense records, and the Gemini API for optional AI features.
 
 ## What works
 
@@ -10,9 +10,29 @@ FinScribe AI is a Next.js personal-finance dashboard for recording expenses, rev
 - Period-based expense reports and AI-assisted report commentary
 - EMI calculation with a full amortization schedule
 - Google Search-grounded finance news and stock research when Gemini is configured
-- Browser-persisted goals, ledger entries, theme, and preferences
+- Browser-persisted goals, ledger entries, monthly budget, theme, and preferences
+- Installable progressive web app with a mobile tab bar, home-screen icon, and offline screen
 
-Goals, contact-ledger data, and settings are currently stored only in the current browser. Bank connections, portfolio syncing, notification delivery, and personalized investment advice are not implemented.
+## Installing as an app
+
+FinScribe ships a web app manifest (`src/app/manifest.ts`), icons (`public/icons/`), and a
+service worker (`public/sw.js`). Over HTTPS, users can install it from Chrome or Edge
+("Install app") or from Safari on iOS (Share → Add to Home Screen); Settings also shows an
+install control. The service worker registers only in production builds. It caches
+immutable build assets and serves `/offline` when a navigation fails; it never caches pages
+or API responses, which are user-specific.
+
+To change the app icon, edit `public/icons/icon.svg` and regenerate the PNG sizes listed in
+the manifest.
+
+Goals, contact-ledger data, and settings are currently stored only in the current browser. Stock research does not show live prices. Bank connections, portfolio syncing, notification delivery, and personalized investment advice are not implemented.
+
+## Android app
+
+`mobile/` contains a native Flutter app for Android that talks to this server's
+API without sign-in: each install identifies itself with a random device key
+(see `src/lib/request-user.ts`). GitHub Actions builds the APK. Setup, signing,
+and the trade-offs of device keys are in [`mobile/README.md`](mobile/README.md).
 
 ## Requirements
 
@@ -86,4 +106,4 @@ npm run build
 
 ## Security model
 
-Dashboard routes require Clerk authentication, onboarding completion is stored in server-managed Clerk metadata, and expense mutations are scoped to the authenticated owner. AI prompts are selected on the server; clients cannot replace system instructions. Never commit `.env` files or credentials.
+Dashboard routes require Clerk authentication; the API also accepts a mobile device key in place of a Clerk session, onboarding completion is stored in server-managed Clerk metadata, and expense mutations are scoped to the authenticated owner. AI prompts are selected on the server; clients cannot replace system instructions. Never commit `.env` files or credentials.

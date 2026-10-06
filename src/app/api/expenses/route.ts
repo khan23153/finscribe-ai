@@ -1,7 +1,7 @@
-import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
+import { getRequestUser } from '@/lib/request-user'
 
 const categories = [
   'Food',
@@ -27,20 +27,9 @@ const createExpenseSchema = z.object({
   date: dateSchema.optional(),
 }).strict()
 
-async function getAuthenticatedUser() {
-  const { isAuthenticated, userId } = await auth()
-  if (!isAuthenticated || !userId) return null
-
-  return prisma.user.upsert({
-    where: { clerkId: userId },
-    update: {},
-    create: { clerkId: userId },
-  })
-}
-
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const user = await getAuthenticatedUser()
+    const user = await getRequestUser(request)
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -65,7 +54,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const user = await getAuthenticatedUser()
+    const user = await getRequestUser(request)
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -108,7 +97,7 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const user = await getAuthenticatedUser()
+    const user = await getRequestUser(request)
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
