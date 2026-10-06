@@ -79,7 +79,6 @@ export const quizQuestions: ReadonlyArray<{
 
 export type FinancialPersonality = {
   name: string
-  emoji: string
   description: string
   score: number
   tips: string[]
@@ -94,7 +93,6 @@ export function getFinancialPersonality(
   if (answers.goal === 'Track daily expenses' && reviewsOften) {
     return {
       name: 'The Optimizer',
-      emoji: '🎯',
       score: 85,
       description: 'You value visibility and regular course corrections in your finances.',
       tips: [
@@ -108,7 +106,6 @@ export function getFinancialPersonality(
   if (answers.goal === 'Invest for the future' || isExperienced) {
     return {
       name: 'The Strategist',
-      emoji: '📊',
       score: 76,
       description: 'You think ahead and prefer decisions that support long-term growth.',
       tips: [
@@ -122,7 +119,6 @@ export function getFinancialPersonality(
   if (answers.spending_habit === 'Shopping' || answers.spending_habit === 'Travel') {
     return {
       name: 'The Explorer',
-      emoji: '🌍',
       score: 58,
       description: 'You value experiences and flexibility, so lightweight guardrails work best.',
       tips: [
@@ -135,7 +131,6 @@ export function getFinancialPersonality(
 
   return {
     name: 'The Builder',
-    emoji: '🏗️',
     score: 67,
     description: 'You are building a practical foundation and benefit from clear milestones.',
     tips: [

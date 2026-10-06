@@ -1,221 +1,148 @@
 'use client'
 
-import { useState } from 'react'
-import { useUser, useClerk, UserButton } from '@clerk/nextjs'
-import ThemeToggle from '../../../components/ThemeToggle'
+import type { ReactNode } from 'react'
+import { useClerk, useUser } from '@clerk/nextjs'
+import Link from 'next/link'
+import { ChevronRight, LogOut } from 'lucide-react'
+import InstallApp from '@/components/InstallApp'
+import { ThemeSwitcher } from '@/components/ThemeToggle'
+import { Button, Card, Input, PageHeader, Switch } from '@/components/ui'
 import { useLocalStorageValue } from '@/lib/use-local-storage'
 
 export default function SettingsPage() {
   const { user } = useUser()
-  const { signOut } = useClerk()
+  const { openUserProfile, signOut } = useClerk()
 
-  const [emailNotifs, setEmailNotifs] = useLocalStorageValue('finscribe-monthly-report', 'true')
-  const [weeklyReport, setWeeklyReport] = useLocalStorageValue('finscribe-weekly-report', 'true')
-  const [budgetAlerts, setBudgetAlerts] = useLocalStorageValue('finscribe-budget-alerts', 'false')
   const [income, setIncome] = useLocalStorageValue('finscribe-income', '')
   const [budget, setBudget] = useLocalStorageValue('finscribe-budget', '')
-  const [savedMessage, setSavedMessage] = useState('')
-
-  const savePreferences = () => {
-    setSavedMessage('Saved!')
-    setTimeout(() => setSavedMessage(''), 2000)
-  }
+  const [weeklyReport, setWeeklyReport] = useLocalStorageValue('finscribe-weekly-report', 'true')
+  const [budgetAlerts, setBudgetAlerts] = useLocalStorageValue('finscribe-budget-alerts', 'false')
+  const [monthlyReport, setMonthlyReport] = useLocalStorageValue('finscribe-monthly-report', 'true')
 
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-8">
-      {/* SECTION 1 - Profile Card */}
-      <div className="bg-surface border border-zinc-800 p-6 rounded-xl text-zinc-100 flex items-center space-x-6">
-        <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-zinc-700 bg-accent text-black flex items-center justify-center flex-shrink-0">
-          {user ? (
-            <UserButton appearance={{ elements: { userButtonAvatarBox: 'w-20 h-20' } }} />
+    <div className="max-w-2xl">
+      <PageHeader title="Settings" />
+
+      <div className="space-y-6">
+        <Card className="p-5 flex items-center gap-4">
+          {user?.imageUrl ? (
+            // Clerk serves avatars from its own CDN; next/image would need remote config for little benefit.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={user.imageUrl} alt="" className="h-12 w-12 rounded-full object-cover border border-border" />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-3xl font-bold">
-              ?
-            </div>
+            <span className="h-12 w-12 rounded-full bg-surface-2 border border-border" />
           )}
-        </div>
-        <div className="flex-1 min-w-0">
-          <h2 className="text-2xl font-bold text-zinc-100 truncate">
-            {user?.fullName || 'Anonymous User'}
-          </h2>
-          <p className="text-zinc-400 text-sm truncate mt-1">
-            {user?.primaryEmailAddress?.emailAddress || 'No email attached'}
-          </p>
-          <div className="mt-3 flex gap-2">
-            <span className="px-2.5 py-1 text-[10px] font-medium bg-zinc-800 text-zinc-300 rounded-md border border-zinc-700 uppercase tracking-wider">
-              Member since {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}
-            </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[15px] font-semibold truncate">{user?.fullName || user?.firstName || 'Your account'}</p>
+            <p className="text-[13px] text-muted truncate">{user?.primaryEmailAddress?.emailAddress}</p>
           </div>
-        </div>
+          <Button variant="secondary" size="sm" onClick={() => openUserProfile()}>Manage</Button>
+        </Card>
+
+        <Section title="Budget" description="Used on Home to show how much of your month is left. Stored on this device.">
+          <Row label="Monthly income" htmlFor="settings-income">
+            <AmountInput id="settings-income" value={income} onChange={setIncome} />
+          </Row>
+          <Row label="Monthly spending budget" htmlFor="settings-budget">
+            <AmountInput id="settings-budget" value={budget} onChange={setBudget} />
+          </Row>
+        </Section>
+
+        <Section title="Appearance">
+          <Row label="Theme">
+            <ThemeSwitcher />
+          </Row>
+          <Row label="Currency">
+            <span className="text-[13px] text-muted">Indian rupee (₹)</span>
+          </Row>
+        </Section>
+
+        <Section title="App">
+          <Row label="Install app" description="Open FinScribe from your home screen.">
+            <InstallApp />
+          </Row>
+          <Row label="Financial profile" description="Retake the setup questions.">
+            <Link href="/onboarding/quiz" className="text-[13px] font-medium text-accent inline-flex items-center gap-0.5 hover:underline">
+              Retake <ChevronRight size={14} />
+            </Link>
+          </Row>
+        </Section>
+
+        <Section title="Notifications" description="Delivery isn't available yet. Your choices are saved for when it is.">
+          <Row label="Weekly spending summary">
+            <Switch label="Weekly spending summary" checked={weeklyReport === 'true'} onChange={(checked) => setWeeklyReport(String(checked))} />
+          </Row>
+          <Row label="Budget alerts at 80%">
+            <Switch label="Budget alerts" checked={budgetAlerts === 'true'} onChange={(checked) => setBudgetAlerts(String(checked))} />
+          </Row>
+          <Row label="Monthly report">
+            <Switch label="Monthly report" checked={monthlyReport === 'true'} onChange={(checked) => setMonthlyReport(String(checked))} />
+          </Row>
+        </Section>
+
+        <Card className="p-1">
+          <button
+            type="button"
+            onClick={() => signOut({ redirectUrl: '/' })}
+            className="w-full h-11 px-4 rounded-lg flex items-center gap-2.5 text-sm font-medium text-negative hover:bg-negative-soft"
+          >
+            <LogOut size={16} /> Sign out
+          </button>
+        </Card>
       </div>
+    </div>
+  )
+}
 
-      {/* SECTION 2 - Appearance */}
-      <div className="bg-surface border border-zinc-800 p-6 rounded-xl text-zinc-100">
-        <h3 className="text-lg font-bold mb-6 border-b border-zinc-800 pb-4">Appearance</h3>
+function Section({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
+  return (
+    <section>
+      <h2 className="text-[13px] font-semibold text-foreground px-1">{title}</h2>
+      {description && <p className="text-[13px] text-muted px-1 mt-0.5">{description}</p>}
+      <Card className="mt-2.5 divide-y divide-border">{children}</Card>
+    </section>
+  )
+}
 
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-zinc-200">Theme</p>
-              <p className="text-sm text-zinc-500 mt-1">Select your preferred viewing mode.</p>
-            </div>
-            <div className="w-48">
-              <ThemeToggle />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-zinc-200">Currency</p>
-              <p className="text-sm text-zinc-500 mt-1">Your primary currency for displaying amounts.</p>
-            </div>
-            <div className="px-4 py-2 bg-zinc-800 text-zinc-300 rounded-lg text-sm border border-zinc-700">
-              ₹ INR
-            </div>
-          </div>
-        </div>
+function Row({
+  label,
+  description,
+  htmlFor,
+  children,
+}: {
+  label: string
+  description?: string
+  htmlFor?: string
+  children: ReactNode
+}) {
+  const LabelTag = htmlFor ? 'label' : 'p'
+  return (
+    <div className="flex items-center justify-between gap-4 px-5 py-3.5 min-h-14">
+      <div className="min-w-0">
+        <LabelTag htmlFor={htmlFor} className="text-sm text-foreground block">{label}</LabelTag>
+        {description && <p className="text-xs text-muted mt-0.5">{description}</p>}
       </div>
+      <div className="shrink-0 flex justify-end">{children}</div>
+    </div>
+  )
+}
 
-      {/* SECTION 3 - Preferences */}
-      <div className="bg-surface border border-zinc-800 p-6 rounded-xl text-zinc-100">
-        <h3 className="text-lg font-bold mb-6 border-b border-zinc-800 pb-4">Notification Preferences</h3>
-
-        <p className="mb-6 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-          Notification delivery is not connected yet. These choices are saved in this browser for future use.
-        </p>
-
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-zinc-200">Weekly spending report</p>
-              <p className="text-sm text-zinc-500 mt-1">Get a summary of your weekly expenses every Monday.</p>
-            </div>
-            <button
-              onClick={() => setWeeklyReport(weeklyReport === 'true' ? 'false' : 'true')}
-              className={`w-11 h-6 rounded-full transition-colors relative flex items-center ${weeklyReport === 'true' ? 'bg-accent' : 'bg-zinc-700'}`}
-              aria-label="Toggle Weekly spending report"
-            >
-              <div className={`w-4 h-4 rounded-full bg-white absolute transform transition-transform ${weeklyReport === 'true' ? 'translate-x-6' : 'translate-x-1'}`} />
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-zinc-200">Budget alerts</p>
-              <p className="text-sm text-zinc-500 mt-1">Get notified when you approach 80% of your category budgets.</p>
-            </div>
-            <button
-              onClick={() => setBudgetAlerts(budgetAlerts === 'true' ? 'false' : 'true')}
-              className={`w-11 h-6 rounded-full transition-colors relative flex items-center ${budgetAlerts === 'true' ? 'bg-accent' : 'bg-zinc-700'}`}
-              aria-label="Toggle Budget alerts"
-            >
-              <div className={`w-4 h-4 rounded-full bg-white absolute transform transition-transform ${budgetAlerts === 'true' ? 'translate-x-6' : 'translate-x-1'}`} />
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-zinc-200">Monthly summary report</p>
-              <p className="text-sm text-zinc-500 mt-1">Receive a detailed monthly financial breakdown.</p>
-            </div>
-            <button
-              onClick={() => setEmailNotifs(emailNotifs === 'true' ? 'false' : 'true')}
-              className={`w-11 h-6 rounded-full transition-colors relative flex items-center ${emailNotifs === 'true' ? 'bg-accent' : 'bg-zinc-700'}`}
-              aria-label="Toggle Monthly notifications"
-            >
-              <div className={`w-4 h-4 rounded-full bg-white absolute transform transition-transform ${emailNotifs === 'true' ? 'translate-x-6' : 'translate-x-1'}`} />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* SECTION 4 - Financial Preferences */}
-      <div className="bg-surface border border-zinc-800 p-6 rounded-xl text-zinc-100">
-        <h3 className="text-lg font-bold mb-6 border-b border-zinc-800 pb-4">Financial Preferences</h3>
-
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <p className="font-medium text-zinc-200">Monthly Income (₹)</p>
-              <p className="text-sm text-zinc-500 mt-1">Set your base monthly income.</p>
-            </div>
-            <input
-              type="number"
-              value={income}
-              onChange={e => setIncome(e.target.value)}
-              className="bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-accent"
-              placeholder="0.00"
-              min="0"
-              max="1000000000"
-              step="0.01"
-            />
-          </div>
-
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <p className="font-medium text-zinc-200">Monthly Budget Limit (₹)</p>
-              <p className="text-sm text-zinc-500 mt-1">Set your overall monthly spending limit.</p>
-            </div>
-            <input
-              type="number"
-              value={budget}
-              onChange={e => setBudget(e.target.value)}
-              className="bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-accent"
-              placeholder="0.00"
-              min="0"
-              max="1000000000"
-              step="0.01"
-            />
-          </div>
-
-          <div className="flex items-center gap-4 pt-4">
-            <button
-              onClick={savePreferences}
-              className="px-6 py-2 bg-accent hover:bg-accent-dark text-black font-medium rounded-lg transition-colors"
-            >
-              Save Preferences
-            </button>
-            {savedMessage && <span className="text-accent text-sm font-medium">{savedMessage}</span>}
-          </div>
-        </div>
-      </div>
-
-      {/* SECTION 5 - Danger Zone */}
-      <div className="bg-surface border border-red-900/30 p-6 rounded-xl text-zinc-100">
-        <h3 className="text-lg font-bold text-red-400 mb-6 border-b border-red-900/30 pb-4">Danger Zone</h3>
-
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <p className="font-medium text-zinc-200">Sign out of FinScribe</p>
-              <p className="text-sm text-zinc-500 mt-1">You will be securely logged out of this device.</p>
-            </div>
-            <button
-              onClick={() => signOut({ redirectUrl: '/' })}
-              className="px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/30 rounded-lg font-medium transition-colors w-full sm:w-auto hover:bg-red-500/20"
-            >
-              Sign Out
-            </button>
-          </div>
-
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-6 border-t border-zinc-800">
-            <div>
-              <p className="font-medium text-zinc-200 flex items-center gap-2">
-                Delete Account
-                <span className="text-[10px] bg-zinc-800 px-2 py-0.5 rounded-full text-zinc-400 uppercase tracking-wider">Coming soon</span>
-              </p>
-              <p className="text-sm text-zinc-500 mt-1">Permanently remove all your financial data and settings.</p>
-            </div>
-            <button
-              disabled
-              className="px-6 py-2 border border-zinc-800 text-zinc-500 bg-transparent rounded-lg font-medium w-full sm:w-auto cursor-not-allowed"
-              title="Coming soon"
-            >
-              Delete Account
-            </button>
-          </div>
-        </div>
-      </div>
+function AmountInput({ id, value, onChange }: { id: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <div className="relative w-36">
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted pointer-events-none">₹</span>
+      <Input
+        id={id}
+        type="number"
+        inputMode="decimal"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="0"
+        min="0"
+        max="1000000000"
+        step="1"
+        className="pl-7 h-9 text-right tabular"
+      />
     </div>
   )
 }

@@ -1,323 +1,246 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useUser } from '@clerk/nextjs'
-import { BarChart2, Inbox, Plus, Settings, Target } from 'lucide-react'
+import { ArrowDownRight, ArrowUpRight, PieChart, Plus, Receipt } from 'lucide-react'
+import { CategoryBreakdown, ExpenseRow, TrendChart, type TrendPoint } from '@/components/finance'
+import { Alert, Card, CardHeader, EmptyState, Skeleton, buttonClass } from '@/components/ui'
 import { isInMonth, type Expense } from '@/lib/expenses'
-
-const chartColors = [
-  '#22c55e',
-  '#3b82f6',
-  '#eab308',
-  '#a855f7',
-  '#ec4899',
-  '#f97316',
-  '#71717a',
-]
+import { formatINR } from '@/lib/format'
+import { useExpenses } from '@/lib/use-expenses'
+import { useClientNow } from '@/lib/use-client-now'
+import { useLocalStorageValue } from '@/lib/use-local-storage'
 
 export default function DashboardPage() {
-  const { isLoaded, isSignedIn, user } = useUser()
-  const [expenses, setExpenses] = useState<Expense[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { user } = useUser()
+  const { expenses, isLoading, error } = useExpenses()
+  const [budgetValue] = useLocalStorageValue('finscribe-budget', '')
 
-  useEffect(() => {
-    const controller = new AbortController()
+  const clientNow = useClientNow()
+  const now = useMemo(() => clientNow ?? new Date(0), [clientNow])
+  const lastMonth = useMemo(() => new Date(now.getFullYear(), now.getMonth() - 1, 1), [now])
+  const isReady = clientNow !== null && !isLoading
 
-    async function loadExpenses() {
-      try {
-        const response = await fetch('/api/expenses', {
-          cache: 'no-store',
-          signal: controller.signal,
-        })
-        const data = await response.json() as { expenses?: Expense[]; error?: string }
+  const summary = useMemo(() => {
+    const thisMonth = expenses.filter((expense) => isInMonth(expense.date, now))
+    // Compare month-to-date against the same days of last month, not the whole month.
+    const previous = expenses.filter((expense) => (
+      isInMonth(expense.date, lastMonth) && new Date(expense.date).getDate() <= now.getDate()
+    ))
+    const total = sum(thisMonth)
+    const previousTotal = sum(previous)
 
-        if (!response.ok) {
-          throw new Error(data.error ?? 'Unable to load dashboard data.')
-        }
+    const byCategory = Object.entries(
+      thisMonth.reduce<Record<string, number>>((totals, expense) => {
+        totals[expense.category] = (totals[expense.category] ?? 0) + Number(expense.amount)
+        return totals
+      }, {}),
+    )
+      .map(([category, amount]) => ({ category, amount }))
+      .sort((a, b) => b.amount - a.amount)
 
-        setExpenses(Array.isArray(data.expenses) ? data.expenses : [])
-      } catch (caughtError) {
-        if (caughtError instanceof DOMException && caughtError.name === 'AbortError') return
-        setError(
-          caughtError instanceof Error
-            ? caughtError.message
-            : 'Unable to load dashboard data.',
-        )
-      } finally {
-        if (!controller.signal.aborted) setIsLoading(false)
-      }
+    return {
+      count: thisMonth.length,
+      total,
+      previousTotal,
+      byCategory,
+      dailyAverage: total / now.getDate(),
     }
+  }, [expenses, lastMonth, now])
 
-    void loadExpenses()
-    return () => controller.abort()
-  }, [])
-
-  const currentMonth = useMemo(() => new Date(), [])
-  const monthlyExpenses = useMemo(
-    () => expenses.filter((expense) => isInMonth(expense.date, currentMonth)),
-    [currentMonth, expenses],
-  )
-
-  const monthlySpend = monthlyExpenses.reduce(
-    (total, expense) => total + Number(expense.amount),
-    0,
-  )
-
-  const categoryData = monthlyExpenses.reduce<Record<string, number>>((totals, expense) => {
-    totals[expense.category] = (totals[expense.category] ?? 0) + Number(expense.amount)
-    return totals
-  }, {})
-
-  const categoryEntries = Object.entries(categoryData).sort((a, b) => b[1] - a[1])
-  const donutBackground = buildDonutGradient(categoryEntries, monthlySpend)
-  const trendData = buildMonthlyTrend(expenses, currentMonth)
-  const maxTrend = Math.max(...trendData.map((item) => item.amount), 1)
-  const hasData = monthlyExpenses.length > 0
-
-  if (!isLoaded || !isSignedIn) return null
+  const trend = useMemo(() => buildMonthlyTrend(expenses, now), [expenses, now])
+  const budget = Number(budgetValue)
+  const hasBudget = Number.isFinite(budget) && budget > 0
+  const change = summary.previousTotal > 0
+    ? ((summary.total - summary.previousTotal) / summary.previousTotal) * 100
+    : null
+  const monthName = clientNow?.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
 
   return (
-    <div className="space-y-6 max-w-[1200px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
+    <div className="space-y-5">
+      <header className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-display font-bold">
-            Hi, {user.firstName || 'there'}!
+          <p className="text-[13px] text-muted min-h-5">{monthName}</p>
+          <h1 className="text-[22px] sm:text-2xl font-semibold tracking-tight mt-0.5">
+            {clientNow ? greeting(clientNow) : 'Welcome'}{user?.firstName ? `, ${user.firstName}` : ''}
           </h1>
-          <p className="text-muted mt-1">Here&apos;s what&apos;s happening with your money this month.</p>
         </div>
-        <Link
-          href="/dashboard/expenses"
-          className="bg-accent hover:bg-accent-dark text-background px-5 py-2.5 rounded-full font-bold text-sm transition-colors flex items-center gap-2"
-        >
-          <Plus size={18} /> Add Transaction
+        <Link href="/dashboard/expenses?new=1" className={buttonClass('primary', 'md', 'max-sm:hidden')}>
+          <Plus size={16} /> Add expense
         </Link>
-      </div>
+      </header>
 
-      {error && (
-        <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-          {error}
-        </div>
-      )}
+      {error && <Alert>{error}</Alert>}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <MetricCard label="Monthly Spend" value={`₹${monthlySpend.toLocaleString('en-IN')}`} />
-        <MetricCard label="Transactions" value={monthlyExpenses.length.toString()} />
-        <MetricCard label="Active Categories" value={categoryEntries.length.toString()} />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        <section className="lg:col-span-3 bg-surface border border-border p-6 rounded-xl min-h-[300px]">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="font-display font-bold text-lg">Six-month spending trend</h2>
-            <span className="text-xs text-muted">Recorded expenses</span>
-          </div>
-
-          {isLoading ? (
-            <LoadingBlock />
-          ) : expenses.length === 0 ? (
-            <EmptyState message="Start tracking to see your spending trend." />
-          ) : (
-            <div className="h-52 flex items-end gap-3 sm:gap-5" aria-label="Monthly spending bar chart">
-              {trendData.map((item) => (
-                <div key={item.key} className="flex-1 min-w-0 flex flex-col items-center gap-2 h-full justify-end">
-                  <span className="text-[10px] sm:text-xs text-muted truncate max-w-full">
-                    ₹{compactAmount(item.amount)}
-                  </span>
-                  <div
-                    className="w-full max-w-12 bg-accent rounded-t-md min-h-1 transition-[height]"
-                    style={{ height: `${Math.max((item.amount / maxTrend) * 150, 4)}px` }}
-                    title={`${item.label}: ₹${item.amount.toLocaleString('en-IN')}`}
-                  />
-                  <span className="text-xs text-muted">{item.label}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="lg:col-span-2 bg-surface border border-border p-6 rounded-xl flex flex-col">
-          <h2 className="font-display font-bold text-lg mb-6">Category breakdown</h2>
-          {isLoading ? (
-            <LoadingBlock />
-          ) : !hasData ? (
-            <EmptyState message="No spending data for this month." />
-          ) : (
-            <>
-              <div className="flex-1 flex items-center justify-center min-h-[200px]">
-                <div
-                  className="w-48 h-48 rounded-full flex items-center justify-center"
-                  style={{ background: donutBackground }}
-                  aria-label="Spending distribution by category"
-                >
-                  <div className="w-32 h-32 bg-surface rounded-full flex flex-col items-center justify-center">
-                    <span className="font-mono font-bold text-xl">₹{compactAmount(monthlySpend)}</span>
-                    <span className="text-xs text-muted">This month</span>
-                  </div>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
-                {categoryEntries.slice(0, chartColors.length).map(([category, amount], index) => (
-                  <div key={category} className="flex items-center gap-2 min-w-0">
-                    <span
-                      className="w-3 h-3 rounded-full shrink-0"
-                      style={{ backgroundColor: chartColors[index] }}
-                    />
-                    <span className="text-sm truncate">
-                      {category} ({Math.round((amount / monthlySpend) * 100)}%)
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </section>
-      </div>
-
-      <section className="bg-accent/5 border border-accent/30 rounded-xl p-6 flex flex-col sm:flex-row items-center gap-6 justify-between">
-        <div className="flex items-start gap-4">
-          <div className="text-3xl" aria-hidden="true">🧠</div>
+      <Card className="p-5 sm:p-6">
+        <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr] lg:gap-10">
           <div>
-            <h2 className="font-display font-bold text-lg text-accent mb-1">Financial insight</h2>
-            <p className="text-sm text-foreground/80 leading-relaxed max-w-2xl">
-              {categoryEntries[0]
-                ? `${categoryEntries[0][0]} is your largest recorded category this month at ₹${categoryEntries[0][1].toLocaleString('en-IN')}. Review its transactions before setting next month's budget.`
-                : 'Add your first expense to receive insights based on your recorded spending.'}
-            </p>
+            <p className="text-[13px] text-muted">Spent this month</p>
+            {!isReady ? (
+              <Skeleton className="h-10 w-48 mt-2" />
+            ) : (
+              <p className="mt-1 text-[34px] sm:text-4xl font-semibold tracking-tight tabular">
+                {formatINR(summary.total)}
+              </p>
+            )}
+            <div className="mt-2 flex items-center gap-1.5 text-[13px] text-muted min-h-5">
+              {isReady && change !== null && (
+                <>
+                  <span className={`inline-flex items-center gap-0.5 font-medium ${change > 0 ? 'text-negative' : 'text-positive'}`}>
+                    {change > 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+                    {Math.abs(change).toFixed(0)}%
+                  </span>
+                  vs. {formatINR(summary.previousTotal)} by this point last month
+                </>
+              )}
+              {isReady && change === null && 'Nothing recorded by this point last month'}
+            </div>
+
+            {hasBudget && isReady && (
+              <BudgetMeter spent={summary.total} budget={budget} />
+            )}
+            {!hasBudget && isReady && (
+              <p className="mt-5 text-[13px] text-muted">
+                <Link href="/dashboard/settings" className="text-accent font-medium hover:underline">Set a monthly budget</Link>
+                {' '}to track how much you have left.
+              </p>
+            )}
           </div>
-        </div>
-        {!hasData && (
-          <Link
-            href="/dashboard/expenses"
-            className="bg-accent hover:bg-accent-dark text-background px-6 py-2 rounded-full font-bold text-sm transition-colors whitespace-nowrap"
-          >
-            Add Expenses &rarr;
-          </Link>
-        )}
-      </section>
 
-      <section className="bg-surface border border-border rounded-xl overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-border flex items-center justify-between">
-          <h2 className="font-display font-bold text-lg">Recent transactions</h2>
-          <Link href="/dashboard/expenses" className="text-sm text-accent hover:underline">
-            View All &rarr;
-          </Link>
+          <dl className="grid grid-cols-3 lg:grid-cols-1 gap-4 lg:gap-0 lg:divide-y lg:divide-border border-t border-border pt-5 lg:border-t-0 lg:pt-0 lg:border-l lg:pl-10">
+            <SummaryItem label="Transactions" value={!isReady ? null : summary.count.toString()} />
+            <SummaryItem label="Daily average" value={!isReady ? null : formatINR(summary.dailyAverage)} />
+            <SummaryItem label="Top category" value={!isReady ? null : summary.byCategory[0]?.category ?? '—'} />
+          </dl>
         </div>
+      </Card>
 
-        {isLoading ? (
-          <div className="p-6"><LoadingBlock /></div>
+      <div className="grid gap-5 lg:grid-cols-5">
+        <Card className="lg:col-span-3">
+          <CardHeader title="Monthly spending" description="Last six months" />
+          <div className="px-5 pb-5 pt-2">
+            {!isReady ? (
+              <Skeleton className="h-[190px]" />
+            ) : expenses.length === 0 ? (
+              <EmptyState icon={PieChart} title="No history yet" description="Your monthly totals will appear here as you record expenses." />
+            ) : (
+              <TrendChart data={trend} />
+            )}
+          </div>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader title="Where it went" description="This month, by category" />
+          <div className="px-5 pb-5 pt-2">
+            {!isReady ? (
+              <div className="space-y-4">
+                {[0, 1, 2, 3].map((index) => <Skeleton key={index} className="h-7" />)}
+              </div>
+            ) : summary.byCategory.length === 0 ? (
+              <EmptyState icon={PieChart} title="Nothing this month" description="Add an expense to see the breakdown." />
+            ) : (
+              <>
+                <CategoryBreakdown rows={summary.byCategory.slice(0, 5)} total={summary.total} />
+                {summary.byCategory.length > 5 && (
+                  <p className="mt-4 text-xs text-muted">
+                    +{summary.byCategory.length - 5} more in{' '}
+                    <Link href="/dashboard/reports" className="text-accent hover:underline">Reports</Link>
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader
+          title="Recent activity"
+          action={
+            expenses.length > 0 && (
+              <Link href="/dashboard/expenses" className="text-[13px] font-medium text-accent hover:underline">
+                See all
+              </Link>
+            )
+          }
+        />
+        {!isReady ? (
+          <div className="px-5 pb-5 space-y-3">
+            {[0, 1, 2].map((index) => <Skeleton key={index} className="h-11" />)}
+          </div>
         ) : expenses.length === 0 ? (
-          <div className="py-12"><EmptyState message="No transactions yet. Add your first expense." /></div>
+          <EmptyState
+            icon={Receipt}
+            title="No expenses yet"
+            description="Record what you spend and FinScribe will build your monthly picture."
+            action={
+              <Link href="/dashboard/expenses?new=1" className={buttonClass('primary', 'sm')}>
+                <Plus size={14} /> Add your first expense
+              </Link>
+            }
+          />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[600px]">
-              <thead>
-                <tr className="bg-background/50 border-b border-border text-xs uppercase text-muted">
-                  <th className="px-6 py-4 font-medium">Date</th>
-                  <th className="px-6 py-4 font-medium">Description</th>
-                  <th className="px-6 py-4 font-medium">Category</th>
-                  <th className="px-6 py-4 font-medium text-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {expenses.slice(0, 5).map((expense) => (
-                  <tr key={expense.id} className="border-b border-border hover:bg-background/50 transition-colors">
-                    <td className="px-6 py-4 text-sm text-muted whitespace-nowrap">
-                      {new Date(expense.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                    </td>
-                    <td className="px-6 py-4 text-sm font-medium">{expense.description}</td>
-                    <td className="px-6 py-4 text-sm text-muted">{expense.category}</td>
-                    <td className="px-6 py-4 font-mono font-bold text-right text-accent">
-                      ₹{Number(expense.amount).toLocaleString('en-IN')}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ul className="divide-y divide-border border-t border-border">
+            {expenses.slice(0, 6).map((expense) => (
+              <ExpenseRow key={expense.id} expense={expense} />
+            ))}
+          </ul>
         )}
-      </section>
+      </Card>
+    </div>
+  )
+}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: 'Add Expense', icon: Plus, href: '/dashboard/expenses' },
-          { label: 'View Reports', icon: BarChart2, href: '/dashboard/reports' },
-          { label: 'Set Goal', icon: Target, href: '/dashboard/goals' },
-          { label: 'Retake Setup', icon: Settings, href: '/onboarding/quiz' },
-        ].map((action) => {
-          const Icon = action.icon
-          return (
-            <Link
-              key={action.href}
-              href={action.href}
-              className="bg-surface border border-border rounded-xl p-4 flex items-center gap-3 hover:border-accent transition-colors"
-            >
-              <Icon size={20} />
-              <span className="font-medium text-sm">{action.label}</span>
-            </Link>
-          )
-        })}
+function SummaryItem({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div className="min-w-0 lg:py-3 lg:first:pt-0 lg:last:pb-0 lg:flex lg:items-baseline lg:justify-between lg:gap-4">
+      <dt className="text-xs lg:text-[13px] text-muted">{label}</dt>
+      <dd className="mt-1 lg:mt-0 text-[15px] font-semibold tabular truncate">
+        {value === null ? <Skeleton className="h-5 w-16" /> : value}
+      </dd>
+    </div>
+  )
+}
+
+function BudgetMeter({ spent, budget }: { spent: number; budget: number }) {
+  const ratio = spent / budget
+  const remaining = budget - spent
+  const tone = ratio >= 1 ? 'bg-negative' : ratio >= 0.8 ? 'bg-warning' : 'bg-accent'
+
+  return (
+    <div className="mt-5">
+      <div className="h-2 rounded-full bg-surface-2 overflow-hidden">
+        <div className={`h-full rounded-full ${tone}`} style={{ width: `${Math.min(ratio * 100, 100)}%` }} />
+      </div>
+      <div className="mt-2 flex justify-between text-[13px]">
+        <span className={remaining < 0 ? 'text-negative font-medium' : 'text-foreground-2'}>
+          {remaining >= 0 ? `${formatINR(remaining)} left` : `${formatINR(-remaining)} over budget`}
+        </span>
+        <span className="text-muted tabular">of {formatINR(budget)}</span>
       </div>
     </div>
   )
 }
 
-function MetricCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="bg-surface border border-border p-6 rounded-xl hover:border-accent/50 transition-colors">
-      <h2 className="text-sm font-medium text-muted mb-2">{label}</h2>
-      <p className="text-3xl font-mono font-bold">{value}</p>
-    </div>
-  )
+function sum(expenses: Expense[]) {
+  return expenses.reduce((total, expense) => total + Number(expense.amount), 0)
 }
 
-function EmptyState({ message }: { message: string }) {
-  return (
-    <div className="h-full flex flex-col items-center justify-center text-muted text-center px-4">
-      <Inbox className="w-10 h-10 mb-2 opacity-50" />
-      <p className="text-sm">{message}</p>
-    </div>
-  )
+function greeting(date: Date) {
+  const hour = date.getHours()
+  if (hour < 12) return 'Good morning'
+  if (hour < 17) return 'Good afternoon'
+  return 'Good evening'
 }
 
-function LoadingBlock() {
-  return <div className="h-40 rounded-lg bg-background animate-pulse" aria-label="Loading" />
-}
-
-function compactAmount(amount: number) {
-  return Intl.NumberFormat('en-IN', {
-    notation: 'compact',
-    maximumFractionDigits: 1,
-  }).format(amount)
-}
-
-function buildMonthlyTrend(expenses: Expense[], now: Date) {
+function buildMonthlyTrend(expenses: Expense[], now: Date): TrendPoint[] {
   return Array.from({ length: 6 }, (_, index) => {
     const month = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1)
-    const amount = expenses
-      .filter((expense) => isInMonth(expense.date, month))
-      .reduce((total, expense) => total + Number(expense.amount), 0)
-
     return {
       key: `${month.getFullYear()}-${month.getMonth()}`,
       label: month.toLocaleDateString('en-IN', { month: 'short' }),
-      amount,
+      amount: sum(expenses.filter((expense) => isInMonth(expense.date, month))),
     }
   })
-}
-
-function buildDonutGradient(entries: Array<[string, number]>, total: number) {
-  if (total <= 0) return 'var(--color-border)'
-
-  let start = 0
-  const stops = entries.slice(0, chartColors.length).map(([, amount], index) => {
-    const end = start + (amount / total) * 100
-    const segment = `${chartColors[index]} ${start}% ${end}%`
-    start = end
-    return segment
-  })
-
-  if (start < 100) stops.push(`${chartColors.at(-1)} ${start}% 100%`)
-  return `conic-gradient(${stops.join(', ')})`
 }

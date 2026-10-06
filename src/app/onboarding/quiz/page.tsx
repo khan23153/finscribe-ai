@@ -3,7 +3,9 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useUser } from '@clerk/nextjs'
-import { ArrowRight, CheckCircle2, ChevronRight, Loader2 } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
+import { LogoMark } from '@/components/Logo'
+import { Alert, Button, Spinner, cx } from '@/components/ui'
 import { quizQuestions, type QuizAnswers } from '@/lib/onboarding'
 
 export default function QuizPage() {
@@ -16,13 +18,7 @@ export default function QuizPage() {
 
   const currentQuestion = quizQuestions[currentStep]
   const selectedAnswer = answers[currentQuestion.id]
-
-  const handleOptionSelect = (option: string) => {
-    setAnswers((previous) => ({
-      ...previous,
-      [currentQuestion.id]: option,
-    }))
-  }
+  const isLast = currentStep === quizQuestions.length - 1
 
   const submitQuiz = async () => {
     setIsSubmitting(true)
@@ -35,134 +31,107 @@ export default function QuizPage() {
         body: JSON.stringify({ answers }),
       })
       const data: { error?: string } = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error ?? 'Failed to save onboarding data.')
-      }
+      if (!response.ok) throw new Error(data.error ?? 'Failed to save your answers.')
 
       // The server updates Clerk metadata, so refresh the user and session token
       // before navigating to routes that read the new value.
       await user?.reload()
       router.replace('/onboarding/result')
     } catch (caughtError) {
-      setError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : 'Failed to save preferences. Please try again.',
-      )
+      setError(caughtError instanceof Error ? caughtError.message : 'Failed to save your answers. Please try again.')
       setIsSubmitting(false)
     }
   }
 
   const handleNext = () => {
     if (!selectedAnswer || isSubmitting) return
-
-    if (currentStep < quizQuestions.length - 1) {
+    if (!isLast) {
       setCurrentStep((previous) => previous + 1)
       return
     }
-
     void submitQuiz()
   }
 
-  if (!isLoaded || !user || isSubmitting) {
+  if (!isLoaded || !user) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 text-zinc-100 p-6">
-        <Loader2 className="w-12 h-12 text-accent animate-spin mb-4" />
-        <h2 className="text-2xl font-bold mb-2">
-          {isSubmitting ? 'Optimizing your account...' : 'Loading your account...'}
-        </h2>
-        <p className="text-zinc-400 text-center max-w-md">
-          {isSubmitting
-            ? 'We are setting up your dashboard based on your preferences.'
-            : 'This will only take a moment.'}
-        </p>
+      <div className="min-h-dvh flex items-center justify-center">
+        <Spinner className="h-6 w-6" />
       </div>
     )
   }
 
-  const progress = ((currentStep + 1) / quizQuestions.length) * 100
-
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 text-zinc-100 p-6">
-      <div className="w-full max-w-2xl">
-        <div className="mb-8">
-          <div className="flex justify-between text-sm font-medium text-zinc-400 mb-2">
-            <span>Question {currentStep + 1} of {quizQuestions.length}</span>
-            <span>{Math.round(progress)}%</span>
-          </div>
-          <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
-            <div
-              className="bg-accent h-full transition-all duration-300 ease-in-out"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
+    <div className="min-h-dvh flex flex-col pt-safe">
+      <header className="h-14 px-4 sm:px-6 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <LogoMark size={22} />
+          <span className="text-sm font-semibold">Set up FinScribe</span>
         </div>
+        <span className="text-[13px] text-muted tabular">{currentStep + 1} of {quizQuestions.length}</span>
+      </header>
+      <div className="h-0.5 bg-border" aria-hidden="true">
+        <div
+          className="h-full bg-accent transition-[width] duration-300"
+          style={{ width: `${((currentStep + 1) / quizQuestions.length) * 100}%` }}
+        />
+      </div>
 
-        <h1 className="text-3xl md:text-4xl font-bold mb-8 tracking-tight">
+      <main className="flex-1 w-full max-w-xl mx-auto px-5 pt-10 sm:pt-16 pb-8">
+        <h1 className="text-2xl sm:text-[28px] font-semibold tracking-tight leading-tight">
           {currentQuestion.question}
         </h1>
+        <p className="mt-2 text-sm text-muted">Choose the one that fits best. You can change this later in Settings.</p>
 
-        <div className="grid gap-4 mb-8">
+        <div role="radiogroup" aria-label={currentQuestion.question} className="mt-8 grid gap-2.5">
           {currentQuestion.options.map((option) => {
             const isSelected = selectedAnswer === option
-
             return (
               <button
                 key={option}
                 type="button"
-                onClick={() => handleOptionSelect(option)}
-                className={`flex items-center justify-between p-6 rounded-xl border-2 text-left transition-all duration-200 ${
+                role="radio"
+                aria-checked={isSelected}
+                onClick={() => setAnswers((previous) => ({ ...previous, [currentQuestion.id]: option }))}
+                className={cx(
+                  'flex items-center gap-3 h-14 px-4 rounded-xl border text-left text-[15px] transition-colors',
                   isSelected
-                    ? 'border-accent bg-accent/10'
-                    : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700 hover:bg-zinc-800'
-                }`}
+                    ? 'border-accent bg-accent-soft text-foreground'
+                    : 'border-border bg-surface hover:border-border-strong',
+                )}
               >
-                <span className="text-lg font-medium">{option}</span>
-                {isSelected && <CheckCircle2 className="w-6 h-6 text-accent" />}
+                <span
+                  className={cx(
+                    'h-[18px] w-[18px] rounded-full border-2 shrink-0 flex items-center justify-center',
+                    isSelected ? 'border-accent' : 'border-border-strong',
+                  )}
+                  aria-hidden="true"
+                >
+                  {isSelected && <span className="h-2 w-2 rounded-full bg-accent" />}
+                </span>
+                {option}
               </button>
             )
           })}
         </div>
 
-        <div className="flex items-center justify-between gap-4">
-          <button
-            type="button"
-            onClick={() => setCurrentStep((previous) => Math.max(0, previous - 1))}
-            disabled={currentStep === 0}
-            className="px-5 py-4 rounded-xl font-semibold text-zinc-400 hover:text-white disabled:opacity-0 disabled:pointer-events-none"
-          >
-            Back
-          </button>
+        {error && <div className="mt-6"><Alert>{error}</Alert></div>}
+      </main>
 
-          <div className="flex flex-col items-end gap-3">
-            {error && (
-              <p role="alert" className="text-red-400 bg-red-500/10 px-4 py-2 rounded-lg font-medium">
-                {error}
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={handleNext}
-              disabled={!selectedAnswer || isSubmitting}
-              className={`flex items-center gap-2 px-8 py-4 rounded-xl font-semibold transition-all duration-200 ${
-                selectedAnswer
-                  ? 'bg-zinc-100 text-zinc-900 hover:bg-white hover:scale-105'
-                  : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
-              }`}
-            >
-              <span>
-                {currentStep === quizQuestions.length - 1 ? 'Complete Setup' : 'Continue'}
-              </span>
-              {currentStep === quizQuestions.length - 1 ? (
-                <ArrowRight className="w-5 h-5" />
-              ) : (
-                <ChevronRight className="w-5 h-5" />
-              )}
-            </button>
-          </div>
+      <footer className="sticky bottom-0 border-t border-border bg-background/90 backdrop-blur-md pb-safe">
+        <div className="max-w-xl mx-auto px-5 py-3 flex items-center justify-between gap-3">
+          <Button
+            variant="ghost"
+            size="lg"
+            onClick={() => setCurrentStep((previous) => Math.max(0, previous - 1))}
+            className={cx(currentStep === 0 && 'invisible')}
+          >
+            <ArrowLeft size={16} /> Back
+          </Button>
+          <Button size="lg" onClick={handleNext} disabled={!selectedAnswer} loading={isSubmitting} className="min-w-32">
+            {isLast ? 'Finish' : 'Continue'}
+          </Button>
         </div>
-      </div>
+      </footer>
     </div>
   )
 }

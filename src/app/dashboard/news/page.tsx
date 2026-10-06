@@ -1,8 +1,18 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { RefreshCw, Newspaper } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { ExternalLink, Newspaper, RefreshCw } from 'lucide-react'
 import { z } from 'zod'
+import {
+  Alert,
+  Button,
+  Card,
+  EmptyState,
+  PageHeader,
+  Segmented,
+  Skeleton,
+  cx,
+} from '@/components/ui'
 
 const newsItemSchema = z.object({
   title: z.string().min(1),
@@ -15,45 +25,41 @@ const newsItemSchema = z.object({
 const newsSchema = z.array(newsItemSchema).min(1).max(8)
 type NewsItem = z.infer<typeof newsItemSchema>
 type NewsCategory = 'All' | NewsItem['category']
+type Source = { title: string; url: string }
+
+const tabs: NewsCategory[] = ['All', 'Markets', 'Economy', 'Banking', 'RBI', 'Crypto']
+
+const sentimentLabel: Record<NewsItem['sentiment'], { text: string; className: string }> = {
+  positive: { text: 'Positive', className: 'text-positive' },
+  negative: { text: 'Negative', className: 'text-negative' },
+  neutral: { text: 'Neutral', className: 'text-muted' },
+}
 
 export default function FinanceNewsPage() {
   const [news, setNews] = useState<NewsItem[]>([])
+  const [sources, setSources] = useState<Source[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<NewsCategory>('All')
   const [error, setError] = useState<string | null>(null)
-  const [sources, setSources] = useState<Array<{ title: string; url: string }>>([])
 
-  const tabs: NewsCategory[] = ['All', 'Markets', 'Economy', 'Crypto', 'Banking', 'RBI']
-
-  const fetchNews = async () => {
+  const fetchNews = useCallback(async () => {
     setIsLoading(true)
-    setNews([])
-    setSources([])
     setError(null)
 
     try {
-      const response = await fetch("/api/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const response = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           mode: 'news',
-          messages: [
-            {
-              role: "user",
-              content: 'Find eight recent, verifiable Indian financial news items. Use ISO 8601 dates in publishedAt and the required categories and sentiment values.'
-            }
-          ]
-        })
+          messages: [{
+            role: 'user',
+            content: 'Find eight recent, verifiable Indian financial news items. Use ISO 8601 dates in publishedAt and the required categories and sentiment values.',
+          }],
+        }),
       })
-
-      const data = await response.json() as {
-        reply?: string
-        error?: string
-        sources?: Array<{ title: string; url: string }>
-      }
-      if (!response.ok || !data.reply) {
-        throw new Error(data.error ?? 'Unable to load finance news.')
-      }
+      const data = await response.json() as { reply?: string; error?: string; sources?: Source[] }
+      if (!response.ok || !data.reply) throw new Error(data.error ?? 'Unable to load finance news.')
 
       const parsed = newsSchema.safeParse(JSON.parse(data.reply))
       if (!parsed.success) throw new Error('The news service returned an invalid response.')
@@ -65,123 +71,83 @@ export default function FinanceNewsPage() {
     } finally {
       setIsLoading(false)
     }
-  }
-
-  useEffect(() => {
-    fetchNews()
   }, [])
 
-  const filteredNews = activeTab === 'All' ? news : news.filter(item => item.category === activeTab)
+  useEffect(() => {
+    void fetchNews()
+  }, [fetchNews])
+
+  const filteredNews = activeTab === 'All' ? news : news.filter((item) => item.category === activeTab)
 
   return (
-    <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl font-bold flex items-center gap-3">
-            <Newspaper className="w-8 h-8 text-accent" />
-            Finance News
-          </h1>
-          <p className="text-muted mt-2">Recent Indian market updates grounded with web search</p>
-        </div>
-        <button
-          onClick={fetchNews}
-          disabled={isLoading}
-          className="bg-surface border border-border hover:bg-background text-foreground px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-        >
-          <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
-          Refresh
-        </button>
-      </div>
+    <div className="max-w-3xl">
+      <PageHeader
+        title="News"
+        description="Recent Indian finance headlines, gathered by web search with sources."
+        actions={
+          <Button variant="secondary" onClick={() => void fetchNews()} disabled={isLoading}>
+            <RefreshCw size={15} className={isLoading ? 'animate-spin' : undefined} />
+            Refresh
+          </Button>
+        }
+      />
 
-      {error && (
-        <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-          {error}
-        </div>
-      )}
+      <Segmented label="Category" value={activeTab} onChange={setActiveTab} options={tabs} className="mb-4" />
 
-      <div className="flex overflow-x-auto space-x-2 pb-2" style={{ scrollbarWidth: "none" }}>
-        {tabs.map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors ${
-              activeTab === tab
-                ? "bg-accent text-black font-medium"
-                : "bg-surface text-zinc-400 border border-border hover:bg-background"
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
+      {error && <div className="mb-4"><Alert>{error}</Alert></div>}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {isLoading
-          ? Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="animate-pulse bg-zinc-800 rounded-xl h-32 w-full" />
-            ))
-          : filteredNews.map((item) => {
-              const categoryColors = {
-                Markets: "bg-blue-500/20 text-blue-400",
-                Economy: "bg-green-500/20 text-green-400",
-                Crypto: "bg-yellow-500/20 text-yellow-400",
-                Banking: "bg-purple-500/20 text-purple-400",
-                RBI: "bg-orange-500/20 text-orange-400"
-              }
-              const sentimentColors = {
-                positive: "bg-green-400",
-                negative: "bg-red-400",
-                neutral: "bg-zinc-400"
-              }
-
-              return (
-                <div
-                  key={`${item.title}-${item.publishedAt}`}
-                  className="bg-surface border border-zinc-800 rounded-xl p-4 hover:border-zinc-600 transition flex flex-col"
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-md ${categoryColors[item.category] || "bg-zinc-800 text-zinc-400"}`}>
-                        {item.category}
-                      </span>
-                      <span className={`w-2 h-2 rounded-full ${sentimentColors[item.sentiment] || "bg-zinc-400"}`} />
-                    </div>
-                    <time className="text-xs text-zinc-400" dateTime={item.publishedAt}>
-                      {formatPublishedDate(item.publishedAt)}
-                    </time>
-                  </div>
-                  <h3 className="font-semibold text-sm text-white mb-1 flex-1">{item.title}</h3>
-                  <p className="text-xs text-zinc-400 mt-1 leading-relaxed">{item.summary}</p>
-                </div>
-              )
-            })}
-      </div>
-
-      {!isLoading && filteredNews.length === 0 && (
-        <div className="text-center py-12 bg-surface border border-border rounded-xl">
-          <p className="text-muted">No news found for this category.</p>
-        </div>
-      )}
-
-      {sources.length > 0 && (
-        <section className="bg-surface border border-border rounded-xl p-5">
-          <h2 className="font-semibold mb-3">Sources used for this briefing</h2>
-          <ul className="grid gap-2 sm:grid-cols-2">
-            {sources.map((source) => (
-              <li key={source.url}>
-                <a
-                  href={source.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-sm text-accent hover:underline break-all"
-                >
-                  {source.title}
-                </a>
+      <Card className="overflow-hidden">
+        {isLoading ? (
+          <ul className="divide-y divide-border">
+            {[0, 1, 2, 3].map((index) => (
+              <li key={index} className="p-5 space-y-2.5">
+                <Skeleton className="h-3 w-32" />
+                <Skeleton className="h-5 w-4/5" />
+                <Skeleton className="h-4 w-full" />
               </li>
             ))}
           </ul>
+        ) : filteredNews.length === 0 ? (
+          <EmptyState icon={Newspaper} title="No stories here" description={error ? 'Try refreshing in a moment.' : 'Nothing in this category from the latest briefing.'} />
+        ) : (
+          <ul className="divide-y divide-border">
+            {filteredNews.map((item) => {
+              const sentiment = sentimentLabel[item.sentiment]
+              return (
+                <li key={`${item.title}-${item.publishedAt}`} className="p-5">
+                  <p className="text-xs text-muted flex flex-wrap items-center gap-x-1.5">
+                    <span className="font-medium text-foreground-2">{item.category}</span>
+                    <span aria-hidden="true">·</span>
+                    <time dateTime={item.publishedAt}>{formatPublishedDate(item.publishedAt)}</time>
+                    <span aria-hidden="true">·</span>
+                    <span className={cx(sentiment.className)}>{sentiment.text}</span>
+                  </p>
+                  <h2 className="mt-1.5 text-[15px] font-semibold leading-snug">{item.title}</h2>
+                  <p className="mt-1 text-sm text-foreground-2 leading-relaxed">{item.summary}</p>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </Card>
+
+      {!isLoading && sources.length > 0 && (
+        <section className="mt-5">
+          <h2 className="text-xs font-medium text-muted mb-2 px-1">Sources for this briefing</h2>
+          <ol className="grid gap-1.5 sm:grid-cols-2 px-1">
+            {sources.map((source) => (
+              <li key={source.url} className="min-w-0">
+                <a href={source.url} target="_blank" rel="noreferrer" className="text-[13px] text-accent hover:underline inline-flex items-center gap-1 max-w-full">
+                  <span className="truncate">{source.title}</span>
+                  <ExternalLink size={12} className="shrink-0" />
+                </a>
+              </li>
+            ))}
+          </ol>
         </section>
       )}
+
+      <p className="mt-5 text-xs text-muted px-1">Summaries are AI-generated from search results and may contain errors. Open the sources to confirm.</p>
     </div>
   )
 }
@@ -189,9 +155,5 @@ export default function FinanceNewsPage() {
 function formatPublishedDate(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-
-  return date.toLocaleString('en-IN', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  })
+  return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
 }
