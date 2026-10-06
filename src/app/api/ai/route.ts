@@ -1,6 +1,6 @@
-import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { getRequestIdentity } from '@/lib/request-user'
 
 const aiModeSchema = z.enum(['assistant', 'emi', 'stocks', 'news', 'report'])
 
@@ -134,12 +134,12 @@ function extractSources(data: GeminiResponse) {
 
 export async function POST(request: Request) {
   try {
-    const { isAuthenticated, userId } = await auth()
-    if (!isAuthenticated || !userId) {
+    const identity = await getRequestIdentity(request)
+    if (!identity) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    if (isRateLimited(userId)) {
+    if (isRateLimited(identity.id)) {
       return NextResponse.json(
         { error: 'Too many AI requests. Please wait a minute and try again.' },
         { status: 429 },

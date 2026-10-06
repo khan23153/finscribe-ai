@@ -1,57 +1,101 @@
 'use client'
 
-import { Moon, Sun } from 'lucide-react'
+import { Monitor, Moon, Sun } from 'lucide-react'
 import { useEffect, useSyncExternalStore } from 'react'
+import { Segmented } from '@/components/ui'
+import { darkQuery, storageKey } from '@/lib/theme-script'
 
-type Theme = 'dark' | 'light'
+export type ThemePreference = 'system' | 'light' | 'dark'
 
 const themeEvent = 'finscribe-theme-change'
 
-function readTheme(): Theme {
-  return localStorage.getItem('finscribe-theme') === 'light' ? 'light' : 'dark'
+function readPreference(): ThemePreference {
+  try {
+    const value = localStorage.getItem(storageKey)
+    return value === 'light' || value === 'dark' ? value : 'system'
+  } catch {
+    return 'system'
+  }
 }
 
-function subscribeToTheme(callback: () => void) {
+function subscribe(callback: () => void) {
   const handleStorage = (event: StorageEvent) => {
-    if (event.key === 'finscribe-theme') callback()
+    if (event.key === storageKey) callback()
   }
-
   window.addEventListener('storage', handleStorage)
   window.addEventListener(themeEvent, callback)
-
   return () => {
     window.removeEventListener('storage', handleStorage)
     window.removeEventListener(themeEvent, callback)
   }
 }
 
-export default function ThemeToggle() {
-  const theme = useSyncExternalStore(subscribeToTheme, readTheme, () => 'dark')
-  const isDark = theme === 'dark'
+function applyTheme(preference: ThemePreference) {
+  const isDark = preference === 'dark'
+    || (preference === 'system' && window.matchMedia(darkQuery).matches)
+  document.documentElement.dataset.theme = isDark ? 'dark' : 'light'
+}
+
+export function useThemePreference() {
+  const preference = useSyncExternalStore(subscribe, readPreference, () => 'system' as const)
 
   useEffect(() => {
-    document.documentElement.classList.toggle('light', !isDark)
-  }, [isDark])
+    applyTheme(preference)
+    if (preference !== 'system') return
 
-  const toggle = () => {
-    const nextTheme: Theme = isDark ? 'light' : 'dark'
-    localStorage.setItem('finscribe-theme', nextTheme)
-    document.documentElement.classList.toggle('light', nextTheme === 'light')
+    const media = window.matchMedia(darkQuery)
+    const handleChange = () => applyTheme('system')
+    media.addEventListener('change', handleChange)
+    return () => media.removeEventListener('change', handleChange)
+  }, [preference])
+
+  const setPreference = (next: ThemePreference) => {
+    try {
+      localStorage.setItem(storageKey, next)
+    } catch {
+      // Storage can be unavailable in private modes; the choice still applies to this page.
+    }
+    applyTheme(next)
     window.dispatchEvent(new Event(themeEvent))
   }
+
+  return [preference, setPreference] as const
+}
+
+export function ThemeSwitcher() {
+  const [preference, setPreference] = useThemePreference()
+
+  return (
+    <Segmented
+      label="Theme"
+      value={preference}
+      onChange={setPreference}
+      options={[
+        { value: 'system', label: 'System' },
+        { value: 'light', label: 'Light' },
+        { value: 'dark', label: 'Dark' },
+      ]}
+    />
+  )
+}
+
+const order: ThemePreference[] = ['system', 'light', 'dark']
+const icons = { system: Monitor, light: Sun, dark: Moon }
+
+export default function ThemeToggle({ className = '' }: { className?: string }) {
+  const [preference, setPreference] = useThemePreference()
+  const Icon = icons[preference]
+  const next = order[(order.indexOf(preference) + 1) % order.length]
 
   return (
     <button
       type="button"
-      onClick={toggle}
-      aria-pressed={!isDark}
-      className="flex items-center gap-2 w-full px-3 py-2 rounded-lg hover:bg-background transition-all text-sm text-muted hover:text-foreground"
+      onClick={() => setPreference(next)}
+      className={`h-8 w-8 rounded-md flex items-center justify-center text-muted hover:bg-surface-2 hover:text-foreground ${className}`}
+      aria-label={`Theme: ${preference}. Switch to ${next}.`}
+      title={`Theme: ${preference}`}
     >
-      {isDark ? (
-        <><Sun size={16} /><span>Light Mode</span></>
-      ) : (
-        <><Moon size={16} /><span>Dark Mode</span></>
-      )}
+      <Icon size={16} />
     </button>
   )
 }

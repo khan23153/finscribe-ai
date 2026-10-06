@@ -1,83 +1,79 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { Calendar, Sparkles } from 'lucide-react'
-import { startOfPeriod, type Expense } from '@/lib/expenses'
+import { useMemo, useState } from 'react'
+import { FileText, PieChart } from 'lucide-react'
+import { CategoryBreakdown } from '@/components/finance'
+import {
+  Alert,
+  Button,
+  Card,
+  CardHeader,
+  EmptyState,
+  PageHeader,
+  Prose,
+  Segmented,
+  Skeleton,
+  Stat,
+} from '@/components/ui'
+import { startOfPeriod } from '@/lib/expenses'
+import { formatINR, formatShortDate } from '@/lib/format'
+import { useExpenses } from '@/lib/use-expenses'
 
 const periods = ['This Week', 'This Month', 'Last 3 Months', 'This Year'] as const
 type Period = typeof periods[number]
 
-type AiResponse = {
-  reply?: string
-  error?: string
+const periodLabels: Record<Period, string> = {
+  'This Week': 'Week',
+  'This Month': 'Month',
+  'Last 3 Months': '3 months',
+  'This Year': 'Year',
 }
 
 export default function ReportsPage() {
   const [activePeriod, setActivePeriod] = useState<Period>('This Month')
-  const [expenses, setExpenses] = useState<Expense[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { expenses, isLoading, error } = useExpenses()
   const [aiReport, setAiReport] = useState('')
+  const [aiError, setAiError] = useState<string | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
-
-  useEffect(() => {
-    const controller = new AbortController()
-
-    async function loadExpenses() {
-      try {
-        const response = await fetch('/api/expenses', {
-          cache: 'no-store',
-          signal: controller.signal,
-        })
-        const data = await response.json() as { expenses?: Expense[]; error?: string }
-        if (!response.ok) throw new Error(data.error ?? 'Unable to load report data.')
-        setExpenses(Array.isArray(data.expenses) ? data.expenses : [])
-      } catch (caughtError) {
-        if (caughtError instanceof DOMException && caughtError.name === 'AbortError') return
-        setError(caughtError instanceof Error ? caughtError.message : 'Unable to load report data.')
-      } finally {
-        if (!controller.signal.aborted) setIsLoading(false)
-      }
-    }
-
-    void loadExpenses()
-    return () => controller.abort()
-  }, [])
 
   const periodExpenses = useMemo(() => {
     const start = startOfPeriod(activePeriod)
     return expenses.filter((expense) => new Date(expense.date) >= start)
   }, [activePeriod, expenses])
 
-  const totalSpent = periodExpenses.reduce(
-    (total, expense) => total + Number(expense.amount),
-    0,
+  const totalSpent = periodExpenses.reduce((total, expense) => total + Number(expense.amount), 0)
+  const averageTransaction = periodExpenses.length > 0 ? totalSpent / periodExpenses.length : 0
+  const largest = periodExpenses.reduce<(typeof periodExpenses)[number] | null>(
+    (current, expense) => (!current || Number(expense.amount) > Number(current.amount) ? expense : current),
+    null,
   )
-  const averageTransaction = periodExpenses.length > 0
-    ? totalSpent / periodExpenses.length
-    : 0
 
-  const categories = Object.entries(
+  const categories = useMemo(() => Object.entries(
     periodExpenses.reduce<Record<string, { amount: number; count: number }>>((totals, expense) => {
       const current = totals[expense.category] ?? { amount: 0, count: 0 }
-      totals[expense.category] = {
-        amount: current.amount + Number(expense.amount),
-        count: current.count + 1,
-      }
+      totals[expense.category] = { amount: current.amount + Number(expense.amount), count: current.count + 1 }
       return totals
     }, {}),
-  ).sort((a, b) => b[1].amount - a[1].amount)
+  )
+    .map(([category, values]) => ({ category, ...values }))
+    .sort((a, b) => b.amount - a.amount), [periodExpenses])
+
+  const changePeriod = (period: Period) => {
+    setActivePeriod(period)
+    setAiReport('')
+    setAiError(null)
+  }
 
   const generateReport = async () => {
     if (periodExpenses.length === 0) return
 
     setIsGenerating(true)
     setAiReport('')
-    setError(null)
+    setAiError(null)
 
     try {
       const categorySummary = categories
-        .map(([category, values]) => `${category}: ₹${values.amount.toFixed(2)} (${values.count} transactions)`)
+        .map(({ category, amount, count }) => `${category}: ₹${amount.toFixed(2)} (${count} transactions)`)
         .join('; ')
 
       const response = await fetch('/api/ai', {
@@ -91,142 +87,97 @@ export default function ReportsPage() {
           }],
         }),
       })
-      const data = await response.json() as AiResponse
-      if (!response.ok || !data.reply) {
-        throw new Error(data.error ?? 'Unable to generate the report.')
-      }
+      const data = await response.json() as { reply?: string; error?: string }
+      if (!response.ok || !data.reply) throw new Error(data.error ?? 'Unable to generate the summary.')
       setAiReport(data.reply)
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Unable to generate the report.')
+      setAiError(caughtError instanceof Error ? caughtError.message : 'Unable to generate the summary.')
     } finally {
       setIsGenerating(false)
     }
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
-      <div>
-        <h1 className="font-display text-3xl font-bold">Financial Reports</h1>
-        <p className="text-muted">Analyze the expenses you have recorded.</p>
-      </div>
+    <div className="space-y-5">
+      <PageHeader
+        title="Reports"
+        description="Totals and patterns from the expenses you have recorded."
+        actions={
+          <Segmented
+            label="Period"
+            value={activePeriod}
+            onChange={changePeriod}
+            options={periods.map((period) => ({ value: period, label: periodLabels[period] }))}
+          />
+        }
+      />
 
-      {error && (
-        <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-          {error}
-        </div>
-      )}
+      {error && <Alert>{error}</Alert>}
 
-      <div className="flex overflow-x-auto gap-2 pb-2" style={{ scrollbarWidth: 'none' }}>
-        {periods.map((period) => (
-          <button
-            key={period}
-            type="button"
-            onClick={() => setActivePeriod(period)}
-            className={`px-4 py-2 rounded-full text-sm whitespace-nowrap transition-colors flex items-center gap-2 ${
-              activePeriod === period
-                ? 'bg-accent text-black font-medium'
-                : 'bg-surface text-muted border border-border hover:bg-background'
-            }`}
-          >
-            <Calendar size={14} />
-            {period}
-          </button>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <SummaryCard label="Total Spent" value={`₹${totalSpent.toLocaleString('en-IN')}`} color="red" />
-        <SummaryCard label="Transactions" value={periodExpenses.length.toString()} color="blue" />
-        <SummaryCard label="Average" value={`₹${averageTransaction.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`} color="green" />
-        <SummaryCard label="Top Category" value={categories[0]?.[0] ?? '—'} color="purple" />
-      </div>
-
-      <section className="bg-surface border border-border rounded-xl p-6">
-        <h2 className="font-display font-bold text-lg mb-6">Spending by category</h2>
+      <Card className="overflow-hidden grid grid-cols-2 lg:grid-cols-4 gap-px bg-border [&>*]:bg-surface [&>*]:p-5">
         {isLoading ? (
-          <div className="h-32 rounded-lg bg-background animate-pulse" />
-        ) : categories.length === 0 ? (
-          <div className="text-center py-12 text-muted">
-            <p>No spending data for this period.</p>
-          </div>
+          [0, 1, 2, 3].map((index) => <div key={index}><Skeleton className="h-4 w-20" /><Skeleton className="h-7 w-28 mt-2" /></div>)
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[520px]">
-              <thead>
-                <tr className="bg-background/50 border-b border-border text-xs uppercase text-muted">
-                  <th className="px-4 py-3 font-medium">Category</th>
-                  <th className="px-4 py-3 font-medium text-right">Amount</th>
-                  <th className="px-4 py-3 font-medium text-right">% of Total</th>
-                  <th className="px-4 py-3 font-medium text-right">Transactions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {categories.map(([category, values]) => (
-                  <tr key={category} className="border-b border-border/70">
-                    <td className="px-4 py-3 font-medium">{category}</td>
-                    <td className="px-4 py-3 text-right font-mono">₹{values.amount.toLocaleString('en-IN')}</td>
-                    <td className="px-4 py-3 text-right">
-                      {totalSpent > 0 ? Math.round((values.amount / totalSpent) * 100) : 0}%
-                    </td>
-                    <td className="px-4 py-3 text-right">{values.count}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <Stat label="Total spent" value={formatINR(totalSpent)} />
+            <Stat label="Transactions" value={periodExpenses.length} />
+            <Stat label="Average" value={formatINR(averageTransaction)} detail="per transaction" />
+            <Stat
+              label="Largest"
+              value={largest ? formatINR(Number(largest.amount)) : '—'}
+              detail={largest ? `${largest.description} · ${formatShortDate(largest.date)}` : undefined}
+            />
+          </>
         )}
-      </section>
+      </Card>
 
-      <section className="bg-surface border border-accent/30 rounded-xl p-6 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-2 h-full bg-accent" />
-        <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6">
-          <div>
-            <h2 className="font-display font-bold text-lg flex items-center gap-2">
-              <span aria-hidden="true">🧠</span> AI expense report
-            </h2>
-            <p className="text-sm text-muted mt-1">Generate insights from the selected period&apos;s totals.</p>
+      <div className="grid gap-5 lg:grid-cols-5">
+        <Card className="lg:col-span-3">
+          <CardHeader title="By category" description="Share of spending in this period" />
+          <div className="px-5 pb-5 pt-2">
+            {isLoading ? (
+              <div className="space-y-4">{[0, 1, 2, 3].map((index) => <Skeleton key={index} className="h-7" />)}</div>
+            ) : categories.length === 0 ? (
+              <EmptyState icon={PieChart} title="No spending in this period" description="Pick a longer period or record an expense." />
+            ) : (
+              <CategoryBreakdown rows={categories} total={totalSpent} />
+            )}
           </div>
-          <button
-            type="button"
-            onClick={() => void generateReport()}
-            disabled={isGenerating || periodExpenses.length === 0}
-            className="bg-accent hover:bg-accent-dark text-black font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
-          >
-            <Sparkles size={16} />
-            {isGenerating ? 'Generating...' : 'Generate AI Report'}
-          </button>
-        </div>
+        </Card>
 
-        {aiReport && (
-          <div className="bg-background border border-border rounded-lg p-5 mt-4 whitespace-pre-wrap text-sm text-zinc-300">
-            {aiReport}
+        <Card className="lg:col-span-2 flex flex-col">
+          <CardHeader
+            title="Written summary"
+            description="Observations generated from this period's totals"
+          />
+          <div className="px-5 pb-5 pt-1 flex-1 flex flex-col">
+            {aiError && <div className="mb-3"><Alert>{aiError}</Alert></div>}
+            {aiReport ? (
+              <>
+                <Prose text={aiReport} />
+                <p className="mt-4 text-xs text-muted">Generated by AI from category totals only. Check figures before acting on them.</p>
+              </>
+            ) : (
+              <div className="flex-1 flex flex-col items-start justify-center rounded-lg border border-dashed border-border p-4">
+                <FileText size={18} className="text-muted" />
+                <p className="mt-2 text-[13px] text-foreground-2">
+                  Get three observations and two recommendations based on your {periodLabels[activePeriod].toLowerCase()} totals.
+                </p>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="mt-3"
+                  loading={isGenerating}
+                  disabled={periodExpenses.length === 0}
+                  onClick={() => void generateReport()}
+                >
+                  {isGenerating ? 'Writing…' : 'Generate summary'}
+                </Button>
+              </div>
+            )}
           </div>
-        )}
-      </section>
-    </div>
-  )
-}
-
-function SummaryCard({
-  label,
-  value,
-  color,
-}: {
-  label: string
-  value: string
-  color: 'red' | 'blue' | 'green' | 'purple'
-}) {
-  const borderColors = {
-    red: 'border-l-red-500',
-    blue: 'border-l-blue-500',
-    green: 'border-l-green-500',
-    purple: 'border-l-purple-500',
-  }
-
-  return (
-    <div className={`bg-surface border border-border p-5 rounded-xl border-l-4 ${borderColors[color]}`}>
-      <p className="text-sm text-muted mb-1">{label}</p>
-      <p className="font-mono text-xl md:text-2xl font-bold truncate">{value}</p>
+        </Card>
+      </div>
     </div>
   )
 }
